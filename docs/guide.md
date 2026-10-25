@@ -185,7 +185,7 @@ If the sensor has **no unit** (e.g. your own template sensor), pick it under *Co
 
 **Hand-overs without a stop:** if PV mode is running and electricity becomes cheap (e.g. at sunset), it carries on as cheap mode. If the cheap period ends and there is PV surplus, it carries on as PV mode. Otherwise cheap mode ends after the minimum runtime.
 
-**Dropouts:** if the price sensor is briefly unavailable (typical at the hour or quarter change), the last price is used for up to 15 minutes. After that the price control pauses – no cheap starts and no blocking.
+**Dropouts:** if the price sensor is briefly unavailable (typical at the hour or quarter change), the last price is used for up to 15 minutes. After that the price control pauses – no cheap starts and no blocking. After a Home Assistant restart, a running cheap-power run also continues for up to 15 minutes until the price sensor reports a value again.
 
 > 💡 **Fixed peak/off-peak times without a price sensor?** Create a template sensor that returns the price by time of day, e.g. *Settings → Devices & services → Helpers → Template → Sensor* with `{{ 22.5 if now().hour < 6 or now().hour >= 22 else 31.8 }}` and the unit `ct/kWh`.
 

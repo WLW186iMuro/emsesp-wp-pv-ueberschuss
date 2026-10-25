@@ -546,6 +546,65 @@ class TestPrice(unittest.TestCase):
         self.assertFalse(sim.state.requested)  # price unknown -> no longer cheap
         self.assertIsNone(sim.last.price_ct)
 
+    def test_restart_during_cheap_run_waits_for_price(self):
+        # Issue #1: after a restart the first steps run before the price sensor is loaded
+        sim = price_sim(price_cheap_ct=23.0, price_expensive_ct=34.0)
+        sim.now = at(13)
+        sim.price = 22.59
+        sim.step()
+        sim.run(90)  # well past the minimum runtime
+        self.assertEqual(sim.state.run_kind, logic.RUN_CHEAP)
+        restored = logic.State.from_dict(sim.state.to_dict())  # restart: volatile state lost
+        sim.state = restored
+        sim.price = None
+        sim.run(2)  # price sensor still loading
+        self.assertTrue(sim.state.requested)
+        self.assertEqual(sim.last.status, logic.ST_CHEAP)
+        self.assertNotIn("stop:price_end", sim.events)
+        sim.price = 22.59  # sensor back, still cheap
+        sim.run(5)
+        self.assertTrue(sim.state.requested)
+        self.assertEqual(sim.state.run_kind, logic.RUN_CHEAP)
+
+    def test_restart_cheap_run_ends_if_price_is_no_longer_cheap(self):
+        sim = price_sim()
+        sim.now = at(3)
+        sim.sun_up = False
+        sim.price = 10.0
+        sim.step()
+        sim.run(60)
+        sim.state = logic.State.from_dict(sim.state.to_dict())
+        sim.price = None
+        sim.run(1)
+        self.assertTrue(sim.state.requested)
+        sim.price = 30.0  # cheap phase ended during the restart
+        sim.step()
+        self.assertFalse(sim.state.requested)
+        self.assertIn("stop:price_end", sim.events)
+
+    def test_restart_price_never_arrives(self):
+        sim = price_sim()
+        sim.now = at(3)
+        sim.sun_up = False
+        sim.price = 10.0
+        sim.step()
+        sim.run(60)
+        sim.state = logic.State.from_dict(sim.state.to_dict())
+        sim.price = None
+        sim.run(14)
+        self.assertTrue(sim.state.requested)
+        sim.run(2)
+        self.assertFalse(sim.state.requested)  # held at most 15 minutes
+        self.assertIn("stop:price_end", sim.events)
+
+    def test_no_cheap_start_without_price_after_restart(self):
+        sim = price_sim()
+        sim.now = at(3)
+        sim.sun_up = False
+        sim.price = None
+        sim.run(5)
+        self.assertFalse(sim.state.requested)
+
     def test_unknown_price_does_not_block(self):
         sim = price_sim()
         sim.grid_w = -2500
