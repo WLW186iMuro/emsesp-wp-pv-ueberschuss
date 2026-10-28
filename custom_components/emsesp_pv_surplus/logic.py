@@ -32,6 +32,7 @@ ST_BATTERY = "battery_low"
 ST_SENSOR = "sensor_error"
 ST_CHEAP = "price_cheap"
 ST_EXPENSIVE = "price_high"
+ST_PEAK = "peak_block"
 STATUS_OPTIONS = [
     ST_OFF,
     ST_MANUAL,
@@ -47,6 +48,7 @@ STATUS_OPTIONS = [
     ST_SENSOR,
     ST_CHEAP,
     ST_EXPENSIVE,
+    ST_PEAK,
 ]
 
 # Reasons used for start/stop events (logbook, last action).
@@ -61,6 +63,11 @@ R_MODE_AUTO = "mode_auto"
 R_CHEAP = "price_cheap"
 R_PRICE_END = "price_end"
 R_PRICE_HIGH = "price_high"
+# Reasons for setting / lifting the EVU block (peak mode)
+R_PEAK = "peak"
+R_PEAK_END = "peak_end"
+R_PEAK_MAX = "peak_max"
+R_PEAK_OFF = "peak_disabled"
 
 # Why the heat pump is currently in PV mode
 RUN_PV = "pv"
@@ -87,6 +94,20 @@ CHECK_KEYS = [
     "price",
     "delay",
 ]
+
+# Conditions for the EVU block (peak mode), in display order
+PEAK_CHECK_KEYS = [
+    "sensors",
+    "pv_off",
+    "expensive",
+    "above_average",
+    "battery",
+    "lock",
+    "limit",
+    "no_surplus",
+]
+# Default position of the EVU block: first character of the input option (1xxxxxxxxxxxxxx).
+EVU_BIT = 0
 
 SOC_STOP_DELAY = timedelta(minutes=2)
 SENSOR_FAIL_DELAY = timedelta(minutes=10)
@@ -144,6 +165,12 @@ class Settings:
     price_expensive_ct: float = 35.0
     price_stop_expensive: bool = False
     price_comp_kw: float = 2.5
+    peak_factor_pct: float = 108.0
+    peak_soc_margin: float = 2.0
+    peak_lock_min: float = 60.0
+    peak_max_per_day: float = 2.0
+    peak_import_min: float = 10.0
+    peak_max_duration_min: float = 120.0
 
     def to_dict(self) -> dict:
         out = {}
@@ -195,6 +222,11 @@ class Inputs:
     pvmaxcomp_kw: float | None = None
     price_configured: bool = False  # a price sensor is set up
     price_ct: float | None = None  # current price in cent (1/100 currency) per kWh
+    peak_configured: bool = False  # EVU input, reserve and both peak prices are set up
+    peak_price_ct: float | None = None  # hourly price, cent per kWh
+    avg_price_ct: float | None = None  # average price today, cent per kWh
+    backup_reserve: float | None = None  # battery backup reserve in %
+    evu_bits: str | None = None  # input option used for the EVU block
 
 
 _MAJOR = {
@@ -269,6 +301,11 @@ class State:
     last_action: str | None = None
     last_action_at: datetime | None = None
     run_kind: str = RUN_PV
+    peak_active: bool = False
+    peak_since: datetime | None = None
+    peak_last_end: datetime | None = None
+    peak_count: int = 0
+    evu_written: bool = False  # EVU bit was (to be) set by us and is not confirmed back at 0
 
     surplus_since: datetime | None = None
     deficit_since: datetime | None = None
@@ -280,6 +317,8 @@ class State:
     last_price_at: datetime | None = None
     price_missing_since: datetime | None = None
     samples: deque = field(default_factory=deque)
+    peak_import_since: datetime | None = None
+    held: dict = field(default_factory=dict)  # last good price values: key -> (time, value)
 
     def to_dict(self) -> dict:
         return {
@@ -292,6 +331,11 @@ class State:
             "last_action": self.last_action,
             "last_action_at": _dt_to_str(self.last_action_at),
             "run_kind": self.run_kind,
+            "peak_active": self.peak_active,
+            "peak_since": _dt_to_str(self.peak_since),
+            "peak_last_end": _dt_to_str(self.peak_last_end),
+            "peak_count": self.peak_count,
+            "evu_written": self.evu_written,
         }
 
     @classmethod
@@ -315,6 +359,13 @@ class State:
         state.run_kind = kind if kind in RUN_KINDS else RUN_PV
         if state.requested and state.requested_since is None:
             state.requested = False
+        state.peak_active = bool(data.get("peak_active", False))
+        state.peak_since = _str_to_dt(data.get("peak_since"))
+        state.peak_last_end = _str_to_dt(data.get("peak_last_end"))
+        state.peak_count = int(data.get("peak_count", 0) or 0)
+        state.evu_written = bool(data.get("evu_written", False))
+        if state.peak_active and state.peak_since is None:
+            state.peak_active = False
         return state
 
 
@@ -350,6 +401,22 @@ class Result:
     price_ct: float | None = None
     price_cheap: bool = False
     price_expensive: bool = False
+    peak_active: bool = False
+    peak_checks: dict[str, bool] = field(default_factory=dict)
+    peak_started: bool = False
+    peak_stopped: bool = False
+    peak_reason: str | None = None
+    peak_price_ct: float | None = None
+    avg_price_ct: float | None = None
+    peak_limit_ct: float | None = None
+    peak_since: datetime | None = None
+    peak_until: datetime | None = None  # end of the maximum block duration
+    peak_lock_until: datetime | None = None
+    peak_import_since: datetime | None = None
+    evu_active: bool | None = None
+    evu_desired: bool = False
+    evu_enforce: bool = False
+    evu_bits_target: str | None = None
 
 
 def battery_missing_kwh(soc: float | None, capacity_kwh: float) -> float | None:
@@ -407,7 +474,20 @@ def valid_bits(bits: str | None, index: int) -> bool:
     return bool(bits) and bool(_BITS.match(bits)) and 0 <= index < len(bits)
 
 
-def evaluate(settings: Settings, state: State, inp: Inputs, bit_index: int = 0) -> Result:
+def _held(state: State, key: str, value: float | None, now: datetime) -> float | None:
+    """Value, or the last good one for up to PRICE_GRACE (price sensors drop out at the hour)."""
+    if value is not None:
+        state.held[key] = (now, value)
+        return value
+    last = state.held.get(key)
+    if last is not None and now - last[0] <= PRICE_GRACE:
+        return last[1]
+    return None
+
+
+def evaluate(
+    settings: Settings, state: State, inp: Inputs, bit_index: int = 0, evu_bit: int = EVU_BIT
+) -> Result:
     """Run one control step. Mutates ``state``."""
     now = inp.now
 
@@ -420,6 +500,7 @@ def evaluate(settings: Settings, state: State, inp: Inputs, bit_index: int = 0) 
         state.day = today
         state.activations = 0
         state.runtime_s = 0.0
+        state.peak_count = 0
     if state.requested:
         state.runtime_s += delta
 
@@ -522,6 +603,65 @@ def evaluate(settings: Settings, state: State, inp: Inputs, bit_index: int = 0) 
 
     result = Result(status=ST_WAIT, checks=checks)
 
+    # EVU block (peak mode): block the heat pump while the price is high and the battery is empty
+    # Price control is a precondition, not a check: the card hides the EVU block while it is off
+    peak_enabled = inp.peak_configured and settings.price_control and settings.mode == MODE_AUTO
+    peak_price = _held(state, "peak", inp.peak_price_ct, now) if inp.peak_configured else None
+    avg_price = _held(state, "avg", inp.avg_price_ct, now) if inp.peak_configured else None
+    peak_limit = avg_price * settings.peak_factor_pct / 100.0 if avg_price is not None else None
+    if available is not None and available <= 0:
+        state.peak_import_since = state.peak_import_since or now
+    elif sensors_ok:
+        state.peak_import_since = None
+    peak_lock_until = (
+        state.peak_last_end + timedelta(minutes=settings.peak_lock_min) if state.peak_last_end else None
+    )
+    evu_ok = valid_bits(inp.evu_bits, evu_bit)
+    peak_checks: dict[str, bool] = {}
+    if inp.peak_configured:
+        peak_checks = {
+            "sensors": sensors_ok and evu_ok,  # grid, battery, SoC and the EVU input
+            "pv_off": settings.mode == MODE_AUTO and not state.requested,
+            "expensive": peak_price is not None and peak_price >= settings.price_expensive_ct,
+            "above_average": peak_price is not None and peak_limit is not None and peak_price > peak_limit,
+            "battery": (
+                inp.soc is not None
+                and inp.backup_reserve is not None
+                and inp.soc <= inp.backup_reserve + settings.peak_soc_margin
+            ),
+            "lock": peak_lock_until is None or now >= peak_lock_until,
+            "limit": state.peak_count < int(settings.peak_max_per_day),
+            "no_surplus": sensors_ok
+            and state.peak_import_since is not None
+            and now - state.peak_import_since >= timedelta(minutes=settings.peak_import_min),
+        }
+
+    def peak_release(reason: str) -> None:
+        state.peak_active = False
+        state.peak_since = None
+        state.peak_last_end = now
+        result.peak_stopped = True
+        result.peak_reason = reason
+
+    if state.peak_active:
+        since = state.peak_since or now
+        if not peak_enabled:
+            peak_release(R_MODE_OFF if settings.mode == MODE_OFF else R_PEAK_OFF)
+        elif state.sensor_fail_since and now - state.sensor_fail_since >= SENSOR_FAIL_DELAY:
+            peak_release(R_SENSOR)
+        elif now - since >= timedelta(minutes=settings.peak_max_duration_min):
+            peak_release(R_PEAK_MAX)  # whatever the price is
+        elif not (peak_price is not None and peak_limit is not None and peak_price >= peak_limit):
+            peak_release(R_PEAK_END)
+    elif peak_enabled and peak_checks and all(peak_checks.values()):
+        state.peak_active = True
+        state.peak_since = now
+        state.peak_count += 1
+        result.peak_started = True
+        result.peak_reason = R_PEAK
+    if state.peak_active and not settings.observe:
+        state.evu_written = True
+
     def start(reason: str, count: bool, kind: str) -> None:
         state.requested = True
         state.run_kind = kind
@@ -581,6 +721,8 @@ def evaluate(settings: Settings, state: State, inp: Inputs, bit_index: int = 0) 
                 stop(R_NO_SURPLUS)
             elif expensive_now and settings.price_stop_expensive and min_runtime_done:
                 stop(R_PRICE_HIGH)
+    elif state.peak_active:
+        pass  # heat pump is blocked, no PV mode
     elif cheap_now and lock_ok:
         start(R_CHEAP, count=False, kind=RUN_CHEAP)
     elif all(checks.values()):
@@ -593,6 +735,8 @@ def evaluate(settings: Settings, state: State, inp: Inputs, bit_index: int = 0) 
     # Status
     if settings.mode == MODE_OFF:
         status = ST_OFF
+    elif state.peak_active:
+        status = ST_PEAK
     elif state.requested:
         if settings.mode == MODE_MANUAL:
             status = ST_MANUAL
@@ -637,6 +781,16 @@ def evaluate(settings: Settings, state: State, inp: Inputs, bit_index: int = 0) 
     if valid_bits(inp.signal_bits, bit_index):
         result.signal_active = inp.signal_bits[bit_index] == "1"
         result.signal_bits_target = set_bit(inp.signal_bits, bit_index, result.desired_signal)
+
+    # EVU input: set while blocked; reset only what we set ourselves
+    result.evu_desired = state.peak_active
+    result.evu_enforce = state.peak_active or state.evu_written
+    if evu_ok:
+        result.evu_active = inp.evu_bits[evu_bit] == "1"
+        result.evu_bits_target = set_bit(inp.evu_bits, evu_bit, result.evu_desired)
+        if not state.peak_active and not result.evu_active:
+            state.evu_written = False
+            result.evu_enforce = False
 
     # Compressor limit
     cheap_run = state.requested and state.run_kind == RUN_CHEAP and settings.mode == MODE_AUTO
@@ -692,6 +846,19 @@ def evaluate(settings: Settings, state: State, inp: Inputs, bit_index: int = 0) 
     result.price_ct = price
     result.price_cheap = cheap_now
     result.price_expensive = expensive_now
+    result.peak_active = state.peak_active
+    result.peak_checks = peak_checks
+    result.peak_price_ct = peak_price
+    result.avg_price_ct = avg_price
+    result.peak_limit_ct = peak_limit
+    result.peak_since = state.peak_since
+    if state.peak_active and state.peak_since:
+        until = state.peak_since + timedelta(minutes=settings.peak_max_duration_min)
+        result.peak_until = until if now < until else None
+    if result.peak_stopped:
+        peak_lock_until = now + timedelta(minutes=settings.peak_lock_min)
+    result.peak_lock_until = peak_lock_until if peak_lock_until and now < peak_lock_until else None
+    result.peak_import_since = state.peak_import_since
 
     state.last_eval = now
     return result

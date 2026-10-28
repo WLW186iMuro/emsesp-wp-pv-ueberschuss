@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .entity import PvSurplusEntity
-from .logic import CHECK_KEYS, STATUS_OPTIONS
+from .logic import CHECK_KEYS, PEAK_CHECK_KEYS, STATUS_OPTIONS
 
 
 def _iso(value) -> str | None:
@@ -31,6 +31,8 @@ def keys(c) -> list[str]:
     out = ["status", "available_power", "activations_today", "runtime_today", "lock_until"]
     if c.has_compressor_control:
         out += ["power_budget", "compressor_target"]
+    if c.has_peak:
+        out.append("peak_activations_today")
     return out
 
 
@@ -44,6 +46,7 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddC
         "lock_until": LockUntilSensor,
         "power_budget": BudgetSensor,
         "compressor_target": CompressorTargetSensor,
+        "peak_activations_today": PeakActivationsSensor,
     }
     async_add_entities(classes[key](c) for key in keys(c))
 
@@ -82,6 +85,17 @@ class StatusSensor(PvSurplusEntity, SensorEntity):
             "price_cheap_ct",
             "price_expensive_ct",
             "run_kind",
+            "peak_checks",
+            "peak_price_ct",
+            "avg_price_ct",
+            "peak_limit_ct",
+            "backup_reserve",
+            "peak_since",
+            "peak_until",
+            "peak_lock_until",
+            "peak_import_since",
+            "evu_bits",
+            "peak_max_per_day",
         }
     )
 
@@ -114,9 +128,34 @@ class StatusSensor(PvSurplusEntity, SensorEntity):
             "price_state": c.price_state,
             "price_cheap_ct": s.price_cheap_ct,
             "price_expensive_ct": s.price_expensive_ct,
+            "peak": c.has_peak,
         }
+        if c.has_peak:
+            attrs.update(
+                {
+                    "peak_active": st.peak_active,
+                    "peak_count": st.peak_count,
+                    "peak_max_per_day": int(s.peak_max_per_day),
+                }
+            )
         if res is None or inp is None:
             return attrs
+        if c.has_peak:
+            attrs.update(
+                {
+                    "peak_checks": {k: res.peak_checks[k] for k in PEAK_CHECK_KEYS if k in res.peak_checks},
+                    "peak_price_ct": _r(res.peak_price_ct, 2),
+                    "avg_price_ct": _r(res.avg_price_ct, 2),
+                    "peak_limit_ct": _r(res.peak_limit_ct, 2),
+                    "backup_reserve": inp.backup_reserve,
+                    "peak_since": _iso(res.peak_since),
+                    "peak_until": _iso(res.peak_until),
+                    "peak_lock_until": _iso(res.peak_lock_until),
+                    "peak_import_since": _iso(res.peak_import_since),
+                    "evu_active": res.evu_active,
+                    "evu_bits": inp.evu_bits,
+                }
+            )
         attrs.update(
             {
                 "checks": {k: res.checks[k] for k in CHECK_KEYS if k in res.checks},
@@ -230,3 +269,14 @@ class LockUntilSensor(PvSurplusEntity, SensorEntity):
     def native_value(self):
         res = self.controller.result
         return res.lock_until if res else None
+
+
+class PeakActivationsSensor(PvSurplusEntity, SensorEntity):
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, controller) -> None:
+        super().__init__(controller, "peak_activations_today")
+
+    @property
+    def native_value(self):
+        return self.controller.state.peak_count

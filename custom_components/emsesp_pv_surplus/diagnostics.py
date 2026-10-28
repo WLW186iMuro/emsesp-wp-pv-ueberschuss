@@ -49,6 +49,7 @@ async def async_get_config_entry_diagnostics(
             "soc_low_since": _plain(state.soc_low_since),
             "sensor_fail_since": _plain(state.sensor_fail_since),
             "samples": len(state.samples),
+            "peak_import_since": _plain(state.peak_import_since),
         },
         "sources": sources,
         "inputs": _plain(controller.inputs),

@@ -33,6 +33,7 @@ Du brauchst kein YAML, keine Helfer und keine Automationen: installieren, Entit�
 - **Sofort-Stopp:** bei Akku unter der Abschaltgrenze (2 min), bei Sonnenuntergang oder wenn Messwerte 10 min fehlen.
 - **Leistungsnachführung (optional):** passt im PV-Betrieb `PV max. Kompressorleistung` (`pvmaxcomp`) an das gemittelte Budget an (aktuelle Kompressorleistung + verbleibender Überschuss). Die Grenze bleibt in einem Min/Max-Bereich und ändert sich nur alle *n* Minuten, nicht im Sekundentakt.
 - **Strompreis-Steuerung (optional):** für dynamische oder zeitvariable Tarife (Tibber, aWATTar, Octopus …). Bei günstigem Strom PV-Betrieb auch ohne Überschuss, bei teurem Strom kein Start. Ohne Preis-Sensor unsichtbar; mit Preis-Sensor erst nach Einschalten der *Preissteuerung* einstellbar. [Details](docs/anleitung.md#7-strompreis-steuerung-optional)
+- **Peak-Modus (optional):** setzt bei hohem Stundenpreis und leerem Akku die EVU-Sperre der Wärmepumpe (ein wählbares Bit von z. B. `text.boiler_hpin1opt`, Standard: erstes Zeichen) und hebt sie wieder auf, sobald der Preis sinkt – spätestens nach der maximalen Sperrdauer. [Details](docs/anleitung.md#71-peak-modus-evu-sperre-bei-hohem-preis-und-leerem-akku)
 - **Beobachtungsmodus:** rechnet und schreibt Logbuch-Einträge („würde starten …“), schreibt aber nichts an die Wärmepumpe. **Neue Einrichtungen starten in diesem Modus.**
 - **Betriebsarten:** Automatik, Aus (gibt die Wärmepumpe in den Normalbetrieb zurück), Manuell (PV-Betrieb an).
 - **Dashboard-Karte:** Status, Live-Werte, Checkliste der Startbedingungen, Betriebsart und alle Einstellungen. Die Integration lädt die Karte selbst, ein Ressourcen-Eintrag ist nicht nötig.
@@ -101,7 +102,12 @@ Alle Bilder stammen aus einer laufenden Installation (Buderus WLW186i, GoodWe GW
 | PV-Prognose verbleibend heute | Solcast, kWh | optional |
 | PV-Prognose in 30 min | Solcast, W | optional |
 | Strompreis-Sensor | z. B. Tibber `EUR/kWh` | optional, nur bei dynamischem / zeitvariablem Tarif |
-| Einheit des Strompreis-Sensors | Automatisch | nur ändern, wenn der Sensor keine Einheit hat |
+| Einheit des Strompreis-Sensors | Automatisch | nur ändern, wenn der Sensor keine Einheit hat; gilt für alle Preis-Sensoren |
+| Eingangs-Option für die EVU-Sperre | `text.boiler_hpin1opt` | optional, Peak-Modus |
+| Bit-Position der EVU-Sperre | `0` | 0 = erstes Zeichen |
+| Akku-Notstromreserve | Reserve in % | Pflicht beim Peak-Modus |
+| Aktueller Stundenpreis | Tibber „Hourly price current“ | Pflicht beim Peak-Modus |
+| Durchschnittspreis heute | Tibber „Average price today“ | Pflicht beim Peak-Modus |
 
 Später änderbar über **Integration → Konfigurieren**. Wenn das Verhalten im Beobachtungsmodus passt, schalte auf der Karte den **Beobachtungsmodus** aus.
 
@@ -138,6 +144,11 @@ Alle Einstellungen sind Entitäten (number / switch / select / time). Du kannst 
 | Günstig-Schwelle / Teuer-Schwelle | 15 / 35 ct/kWh | nur mit Preissteuerung |
 | Bei teurem Strom beenden | aus | nur mit Preissteuerung |
 | Kompressorleistung bei günstigem Strom | 2,5 kW | nur mit Preissteuerung und Leistungsnachführung |
+| Peak: Preis über Tagesdurchschnitt | 108 % | EVU-Sperre ab Stundenpreis > Ø × Wert, Aufhebung darunter |
+| Peak: Abstand zur Notstromreserve | 2 % | EVU-Sperre ab Ladestand ≤ Reserve + Wert |
+| Peak: Netzbezug seit mindestens | 10 min | verfügbare Leistung ≤ 0 W am Stück |
+| Peak: Max. Dauer der EVU-Sperre | 120 min | danach immer aufheben, egal wie der Preis ist |
+| Peak: Sperrzeit / Max. Aktivierungen pro Tag | 60 min / 2 | Pause nach der letzten EVU-Sperre |
 
 Passe die Standardwerte an deine Anlage an: die Akku-Kapazität und den Kompressorbereich für deine Wärmepumpe (die Standardwerte passen zu einem 7-kW-Gerät wie der WLW186i-7).
 
@@ -155,8 +166,8 @@ Ziel      = begrenzt(Budget − Reserve, min, max) bei Akku-Freigabe, sonst min
 ## Entitäten
 
 - **Sensoren:** Status (mit vielen Attributen), verfügbare Leistung, Leistungsbudget, Kompressor-Zielleistung, Aktivierungen heute, PV-Laufzeit heute, Sperrzeit bis
-- **Binärsensoren:** PV-Betrieb angefordert, PV-Signal an Wärmepumpe, Akku-Freigabe, Überschuss über Einschaltschwelle
-- **Tasten:** Sperrzeit aufheben, Tageszähler zurücksetzen
+- **Binärsensoren:** PV-Betrieb angefordert, PV-Signal an Wärmepumpe, Akku-Freigabe, Überschuss über Einschaltschwelle; mit Peak-Modus: EVU-Sperre angefordert, EVU-Signal an Wärmepumpe
+- **Tasten:** Sperrzeit aufheben, Tageszähler zurücksetzen (mit Peak-Modus auch für die EVU-Sperre)
 
 ## Entfernen
 
@@ -228,6 +239,7 @@ No YAML, no helpers, no automations: you install it, pick your entities, and put
 - **Immediate stop:** when the battery falls below the stop level (for 2 min), at sunset, or when readings are missing for 10 min.
 - **Compressor power control (optional):** in PV mode it adjusts `PV max. compressor power` (`pvmaxcomp`) to the averaged budget (current compressor power + remaining surplus). The limit stays inside a min/max range and changes only every *n* minutes, never second by second.
 - **Price control (optional):** for dynamic or time-of-use tariffs (Tibber, aWATTar, Octopus …). PV mode even without surplus when electricity is cheap, no start when it is expensive. Invisible without a price sensor; with one, adjustable only after turning on *Price control*. [Details](docs/guide.md#7-price-control-optional)
+- **Peak mode (optional):** sets the heat pump's EVU block (a selectable bit of e.g. `text.boiler_hpin1opt`, default: first character) when the hourly price is high and the battery is empty, and lifts it as soon as the price drops, at the latest after the maximum block duration. [Details](docs/guide.md#71-peak-mode-evu-block-on-high-price-and-empty-battery)
 - **Observe mode:** it calculates and writes logbook entries ("would start …") but does not write anything to the heat pump. **New installations start in observe mode**, so you can compare it with your current setup first.
 - **Modes:** automatic, off (hands the heat pump back to normal operation), manual (PV mode on).
 - **Dashboard card:** status, live values, a start-condition checklist, the mode buttons and all settings in one card. The integration loads it automatically, so no resource entry is needed.
@@ -311,6 +323,11 @@ All settings are entities (number / switch / select / time), so you can also use
 | Cheap / expensive threshold | 15 / 35 ct/kWh | only with price control |
 | Stop when expensive | off | only with price control |
 | Compressor power on cheap electricity | 2.5 kW | only with price control and power control |
+| Peak: price above daily average | 108 % | EVU block from hourly price > avg × value, lifted below |
+| Peak: margin above backup reserve | 2 % | EVU block from SoC ≤ reserve + value |
+| Peak: grid import for at least | 10 min | available power ≤ 0 W without a break |
+| Peak: max. EVU block duration | 120 min | always lifted after this, whatever the price |
+| Peak: lock time / max. activations per day | 60 min / 2 | pause after the last EVU lock activation |
 
 Match the defaults to your system: the battery capacity, and the compressor range for your heat pump (the defaults suit a 7 kW unit such as the WLW186i-7).
 
@@ -328,8 +345,8 @@ target    = clamp(budget − reserve, min, max) if battery released, otherwise m
 ### Entities
 
 - **Sensors:** status (with lots of attributes), available power, power budget, compressor target, activations today, PV runtime today, locked until
-- **Binary sensors:** PV mode requested, PV signal at heat pump, battery release, surplus above threshold
-- **Buttons:** lift lock time, reset daily counter
+- **Binary sensors:** PV mode requested, PV signal at heat pump, battery release, surplus above threshold; with peak mode: EVU block requested, EVU signal at heat pump
+- **Buttons:** lift lock time, reset daily counter (with peak mode also for the EVU block)
 
 ### Removing it
 

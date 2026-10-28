@@ -23,10 +23,13 @@
         battery: "Akku",
         compressor: "Kompressor",
         forecast: "Prognose",
-        today: "Heute",
+        today: "PV-Überschuss heute",
         grid: "Netz",
         price: "Strompreis",
+        evu: "EVU-Sperren heute",
       },
+      evuActiveUntil: "bis",
+      evuLockUntil: "Sperrzeit bis",
       price: { cheap: "günstig", expensive: "teuer", normal: "normal", unavailable: "nicht verfügbar", unit_unknown: "Einheit unbekannt" },
       runningCheap: "PV-Betrieb mit günstigem Strom",
       threshold: "Schwelle",
@@ -38,7 +41,7 @@
       runtime: "Laufzeit",
       import: "Bezug",
       export: "Einspeisung",
-      conditions: "Startbedingungen",
+      conditions: "Startbedingungen Solarbetrieb (PV-Überschuss)",
       running: "Laufender PV-Betrieb",
       since: "seit",
       minRuntimeUntil: "Mindestlaufzeit bis",
@@ -56,6 +59,20 @@
         price: "Strompreis nicht zu hoch",
         delay: "Überschuss lange genug stabil",
       },
+      peak: "Startbedingungen Peak-Modus (EVU-Sperre)",
+      peakRunning: "EVU-Sperre aktiv",
+      peakUntil: "Spätestens aufgehoben um",
+      peakLiftBelow: "Aufhebung, sobald der Stundenpreis unter",
+      peakChecks: {
+        sensors: "Messwerte vorhanden (inkl. EVU-Eingang)",
+        pv_off: "Automatik, kein PV-Betrieb",
+        expensive: "Stundenpreis ≥ Teuer-Schwelle",
+        above_average: "Stundenpreis > Tagesdurchschnitt",
+        battery: "Akku an der Notstromreserve",
+        lock: "Keine Sperrzeit",
+        limit: "Tageslimit nicht erreicht",
+        no_surplus: "Netzbezug lange genug",
+      },
       lockUntil: "bis",
       control: "Steuerung",
       modes: { auto: "Automatik", off: "Aus", manual: "Manuell an" },
@@ -67,11 +84,12 @@
       },
       settings: "Einstellungen",
       groups: {
-        surplus: "Überschuss",
+        surplus: "Solarbetrieb (PV-Überschuss)",
         battery: "Akku & Prognose",
         protect: "Kompressorschutz & Zeiten",
         compressor: "Leistungsnachführung",
         price: "Strompreis",
+        peak: "Peak-Modus (EVU-Sperre)",
       },
       fields: {
         on_threshold_w: ["Einschaltschwelle", "verfügbare Leistung zum Einschalten"],
@@ -97,6 +115,12 @@
         price_expensive_ct: ["Teuer-Schwelle", "darüber keine Starts"],
         price_stop_expensive: ["Bei teurem Strom beenden", "laufenden PV-Betrieb nach der Mindestlaufzeit stoppen"],
         price_comp_kw: ["Kompressorleistung bei günstigem Strom", "PV max. Kompressorleistung im Günstig-Betrieb"],
+        peak_factor_pct: ["Preis über Tagesdurchschnitt", "Sperre ab Stundenpreis > Ø × Wert, Aufhebung darunter"],
+        peak_soc_margin: ["Abstand zur Notstromreserve", "Sperre ab Ladestand ≤ Reserve + Wert"],
+        peak_import_min: ["Netzbezug seit mindestens", "verfügbare Leistung ≤ 0 W am Stück"],
+        peak_max_duration_min: ["Max. Dauer der Sperre", "danach immer aufheben, egal wie der Preis ist"],
+        peak_lock_min: ["Sperrzeit", "Pause nach der letzten EVU-Sperre"],
+        peak_max_per_day: ["Max. Aktivierungen pro Tag", ""],
       },
       buttons: { reset_lock: "Sperrzeit aufheben", reset_counter: "Tageszähler zurücksetzen" },
       lastAction: "Zuletzt",
@@ -115,10 +139,13 @@
         battery: "Battery",
         compressor: "Compressor",
         forecast: "Forecast",
-        today: "Today",
+        today: "PV surplus today",
         grid: "Grid",
         price: "Electricity price",
+        evu: "EVU locks today",
       },
+      evuActiveUntil: "until",
+      evuLockUntil: "lock time until",
       price: { cheap: "cheap", expensive: "expensive", normal: "normal", unavailable: "unavailable", unit_unknown: "unit unknown" },
       runningCheap: "PV mode on cheap electricity",
       threshold: "Threshold",
@@ -130,7 +157,7 @@
       runtime: "Runtime",
       import: "import",
       export: "export",
-      conditions: "Start conditions",
+      conditions: "Start conditions solar mode (PV surplus)",
       running: "PV mode running",
       since: "since",
       minRuntimeUntil: "Minimum runtime until",
@@ -148,6 +175,20 @@
         price: "Electricity price not too high",
         delay: "Surplus stable long enough",
       },
+      peak: "Start conditions peak mode (EVU block)",
+      peakRunning: "EVU block active",
+      peakUntil: "Lifted at the latest at",
+      peakLiftBelow: "Lifted once the hourly price is below",
+      peakChecks: {
+        sensors: "Readings available (incl. EVU input)",
+        pv_off: "Automatic, no PV mode",
+        expensive: "Hourly price ≥ expensive threshold",
+        above_average: "Hourly price > daily average",
+        battery: "Battery at backup reserve",
+        lock: "No lock time",
+        limit: "Daily limit not reached",
+        no_surplus: "Grid import long enough",
+      },
       lockUntil: "until",
       control: "Control",
       modes: { auto: "Automatic", off: "Off", manual: "Manual on" },
@@ -159,11 +200,12 @@
       },
       settings: "Settings",
       groups: {
-        surplus: "Surplus",
+        surplus: "Solar mode (PV surplus)",
         battery: "Battery & forecast",
         protect: "Compressor protection & times",
         compressor: "Compressor power control",
         price: "Electricity price",
+        peak: "Peak mode (EVU block)",
       },
       fields: {
         on_threshold_w: ["Switch-on threshold", "available power needed to start"],
@@ -189,6 +231,12 @@
         price_expensive_ct: ["Expensive threshold", "above this, no starts"],
         price_stop_expensive: ["Stop when expensive", "end running PV mode after the minimum runtime"],
         price_comp_kw: ["Compressor power on cheap electricity", "PV max. compressor power in cheap mode"],
+        peak_factor_pct: ["Price above daily average", "block from hourly price > avg × value, lifted below"],
+        peak_soc_margin: ["Margin above backup reserve", "block from SoC ≤ reserve + value"],
+        peak_import_min: ["Grid import for at least", "available power ≤ 0 W without a break"],
+        peak_max_duration_min: ["Max. block duration", "always lifted after this, whatever the price"],
+        peak_lock_min: ["Lock time", "pause after the last EVU lock activation"],
+        peak_max_per_day: ["Max. activations per day", ""],
       },
       buttons: { reset_lock: "Lift lock time", reset_counter: "Reset daily counter" },
       lastAction: "Last",
@@ -202,9 +250,11 @@
     ["protect", ["min_runtime_min", "lock_min", "max_activations", "window_start", "window_end"]],
     ["compressor", ["comp_min_kw", "comp_max_kw", "comp_reserve_kw", "comp_step_kw", "comp_interval_min"]],
     ["price", ["price_cheap_ct", "price_expensive_ct", "price_stop_expensive", "price_comp_kw"]],
+    ["peak", ["peak_factor_pct", "peak_soc_margin", "peak_import_min", "peak_max_duration_min", "peak_lock_min", "peak_max_per_day"]],
   ];
   const SWITCH_FIELDS = new Set(["price_stop_expensive"]);
   const CHECKS = ["sensors", "sun", "window", "battery", "lock", "limit", "surplus", "forecast", "price", "delay"];
+  const PEAK_CHECKS = ["sensors", "pv_off", "expensive", "above_average", "battery", "lock", "limit", "no_surplus"];
 
   const STATUS_TONE = {
     pv_active: "sun",
@@ -221,6 +271,7 @@
     sensor_error: "error",
     price_cheap: "sun",
     price_high: "warn",
+    peak_block: "error",
   };
 
   const esc = (s) =>
@@ -495,6 +546,11 @@
             <div class="checks" id="checks"></div>
             <div class="run" id="run" hidden></div>
           </div>
+          <div class="sec" id="peak-sec" hidden>
+            <div class="sec-t" id="peak-title"></div>
+            <div class="checks" id="peak-checks"></div>
+            <div class="run" id="peak-run" hidden></div>
+          </div>
           <div class="sec">
             <div class="sec-t">${esc(t.control)}</div>
             <div class="modes" id="modes">
@@ -681,6 +737,21 @@
         v: `${a.activations ?? "–"} / ${a.max_activations ?? "–"}`,
         s: `${t.runtime} ${this._num(runtime)} min`,
       });
+      if (a.peak && a.price_control) {
+        // Runtime of the running EVU block
+        const since = a.peak_active && a.peak_since ? new Date(a.peak_since).getTime() : NaN;
+        const evuRuntime = Number.isNaN(since) ? 0 : Math.max(0, (Date.now() - since) / 60000);
+        tiles.push({
+          l: t.tiles.evu,
+          v: `${a.peak_count ?? "–"} / ${a.peak_max_per_day ?? "–"}`,
+          cls: a.peak_active ? "neg" : "",
+          s: a.peak_active
+            ? `${t.runtime} ${this._num(evuRuntime)} min · ${t.evuActiveUntil} ${this._time(a.peak_until)}`
+            : a.peak_lock_until
+              ? `${t.evuLockUntil} ${this._time(a.peak_lock_until)}`
+              : `${t.runtime} 0 min`,
+        });
+      }
       root.getElementById("tiles").innerHTML = tiles
         .map((x) => `<div class="tile"><div class="l">${esc(x.l)}</div><div class="v ${x.cls || ""}">${esc(x.v)}</div><div class="s">${esc(x.s || "")}</div></div>`)
         .join("");
@@ -727,6 +798,46 @@
           .join("");
       }
 
+      // EVU block (peak mode)
+      const peakSec = root.getElementById("peak-sec");
+      peakSec.hidden = !a.peak || a.price_control !== true;
+      if (!peakSec.hidden) {
+        const peakRun = root.getElementById("peak-run");
+        const peakChecksEl = root.getElementById("peak-checks");
+        const ct = (v) => (v !== null && v !== undefined ? `${this._num(v, 1)} ct` : "–");
+        if (a.peak_active) {
+          root.getElementById("peak-title").textContent = t.peakRunning;
+          peakChecksEl.hidden = true;
+          peakRun.hidden = false;
+          const lines = [`<b>${esc(t.since)}</b> ${esc(this._time(a.peak_since))}`];
+          lines.push(`<b>${esc(t.peakUntil)}</b> ${esc(this._time(a.peak_until))}`);
+          lines.push(`${esc(t.peakLiftBelow)} ${esc(ct(a.peak_limit_ct))}`);
+          peakRun.innerHTML = lines.join("<br>");
+        } else {
+          root.getElementById("peak-title").textContent = t.peak;
+          peakChecksEl.hidden = false;
+          peakRun.hidden = true;
+          const pc = a.peak_checks || {};
+          const pd = {
+            expensive: `${ct(a.peak_price_ct)} / ${ct(a.price_expensive_ct)}`,
+            above_average: `${ct(a.peak_price_ct)} / ${ct(a.peak_limit_ct)}`,
+            battery:
+              a.soc !== undefined && a.soc !== null
+                ? `${this._num(a.soc)} % / ${this._num(a.backup_reserve)} %`
+                : "",
+            lock: a.peak_lock_until ? `${t.lockUntil} ${this._time(a.peak_lock_until)}` : "",
+            limit: `${a.peak_count ?? "–"} / ${a.peak_max_per_day ?? "–"}`,
+            no_surplus: a.peak_import_since ? `${t.since} ${this._time(a.peak_import_since)}` : "",
+          };
+          peakChecksEl.innerHTML = PEAK_CHECKS.filter((k) => k in pc)
+            .map((k) => {
+              const ok = !!pc[k];
+              return `<div class="check ${ok ? "ok" : "no"}"><ha-icon icon="${ok ? "mdi:check-circle" : "mdi:circle-outline"}"></ha-icon><span>${esc(t.peakChecks[k])}</span><span class="d">${esc(pd[k] || "")}</span></div>`;
+            })
+            .join("");
+        }
+      }
+
       // Controls
       const mode = this._st("mode")?.state;
       root.querySelectorAll("[data-mode]").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
@@ -737,8 +848,8 @@
       });
 
       // Price settings only while the price control is switched on
-      const priceGrp = root.querySelector('[data-grp="price"]');
-      if (priceGrp) priceGrp.hidden = this._st("price_control")?.state !== "on";
+      const priceOn = this._st("price_control")?.state === "on";
+      root.querySelectorAll('[data-grp="price"], [data-grp="peak"]').forEach((g) => (g.hidden = !priceOn));
 
       // Settings (do not overwrite a field the user is editing)
       const active = root.activeElement;

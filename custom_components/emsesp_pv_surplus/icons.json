@@ -15,7 +15,8 @@
           "sensor_error": "mdi:alert-circle-outline",
           "off": "mdi:power-off",
           "price_cheap": "mdi:cash-clock",
-          "price_high": "mdi:cash-remove"
+          "price_high": "mdi:cash-remove",
+          "peak_block": "mdi:transmission-tower-off"
         }
       },
       "available_power": {
@@ -35,6 +36,9 @@
       },
       "lock_until": {
         "default": "mdi:lock-clock"
+      },
+      "peak_activations_today": {
+        "default": "mdi:counter"
       }
     },
     "binary_sensor": {
@@ -49,6 +53,18 @@
       },
       "surplus": {
         "default": "mdi:white-balance-sunny"
+      },
+      "peak_active": {
+        "default": "mdi:transmission-tower-off",
+        "state": {
+          "off": "mdi:transmission-tower"
+        }
+      },
+      "evu_signal_active": {
+        "default": "mdi:transmission-tower-off",
+        "state": {
+          "off": "mdi:transmission-tower"
+        }
       }
     },
     "number": {
@@ -111,6 +127,24 @@
       },
       "price_comp_kw": {
         "default": "mdi:speedometer"
+      },
+      "peak_factor_pct": {
+        "default": "mdi:chart-bell-curve"
+      },
+      "peak_soc_margin": {
+        "default": "mdi:battery-low"
+      },
+      "peak_import_min": {
+        "default": "mdi:transmission-tower-import"
+      },
+      "peak_max_duration_min": {
+        "default": "mdi:timer-lock-outline"
+      },
+      "peak_lock_min": {
+        "default": "mdi:lock-clock"
+      },
+      "peak_max_per_day": {
+        "default": "mdi:counter"
       }
     },
     "switch": {

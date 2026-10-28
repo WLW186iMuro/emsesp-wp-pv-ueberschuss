@@ -20,12 +20,17 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     BATTERY_CHARGE_POSITIVE,
+    CONF_AVG_PRICE_ENTITY,
+    CONF_BACKUP_RESERVE_ENTITY,
     CONF_BATTERY_POWER_ENTITY,
     CONF_BATTERY_SIGN,
+    CONF_EVU_BIT,
+    CONF_EVU_ENTITY,
     CONF_FORECAST_30MIN_ENTITY,
     CONF_FORECAST_REMAINING_ENTITY,
     CONF_GRID_ENTITY,
     CONF_GRID_SIGN,
+    CONF_HOURLY_PRICE_ENTITY,
     CONF_HP_POWER_ENTITY,
     CONF_NAME,
     CONF_PRICE_ENTITY,
@@ -37,6 +42,7 @@ from .const import (
     DEFAULT_NAME,
     DOMAIN,
     GRID_EXPORT_POSITIVE,
+    PEAK_ENTITIES,
     SAVE_DELAY,
     SIGNAL_REWRITE_INTERVAL,
     TICK_INTERVAL,
@@ -73,6 +79,11 @@ _TEXT = {
         "would_comp": "würde PV max. Kompressorleistung {old} → {new} kW setzen (Budget Ø {budget} W)",
         "comp_cheap": "PV max. Kompressorleistung {old} → {new} kW (günstiger Strom)",
         "would_comp_cheap": "würde PV max. Kompressorleistung {old} → {new} kW setzen (günstiger Strom)",
+        "peak_start": "EVU-Sperre gesetzt ({reason})",
+        "peak_stop": "EVU-Sperre aufgehoben ({reason})",
+        "would_peak_start": "würde EVU-Sperre setzen ({reason})",
+        "would_peak_stop": "würde EVU-Sperre aufheben ({reason})",
+        "evu": "EVU-Signal {old} → {new}",
         "on": "an",
         "off": "aus",
         "reasons": {
@@ -86,6 +97,10 @@ _TEXT = {
             "price_cheap": "günstiger Strom",
             "price_end": "günstige Strompreis-Phase vorbei",
             "price_high": "Strompreis zu hoch",
+            "peak": "Strompreis hoch, Akku leer",
+            "peak_end": "Strompreis wieder unter Tagesdurchschnitt",
+            "peak_max": "maximale Sperrdauer erreicht",
+            "peak_disabled": "Preissteuerung aus oder Betriebsart nicht Automatik",
         },
     },
     "en": {
@@ -100,6 +115,11 @@ _TEXT = {
         "would_comp": "would set PV max. compressor power {old} → {new} kW (budget avg {budget} W)",
         "comp_cheap": "PV max. compressor power {old} → {new} kW (cheap electricity)",
         "would_comp_cheap": "would set PV max. compressor power {old} → {new} kW (cheap electricity)",
+        "peak_start": "EVU block set ({reason})",
+        "peak_stop": "EVU block lifted ({reason})",
+        "would_peak_start": "would set EVU block ({reason})",
+        "would_peak_stop": "would lift EVU block ({reason})",
+        "evu": "EVU signal {old} → {new}",
         "on": "on",
         "off": "off",
         "reasons": {
@@ -113,6 +133,10 @@ _TEXT = {
             "price_cheap": "cheap electricity",
             "price_end": "cheap price period over",
             "price_high": "electricity price too high",
+            "peak": "price high, battery empty",
+            "peak_end": "price back below the daily average",
+            "peak_max": "maximum block duration reached",
+            "peak_disabled": "price control off or mode not automatic",
         },
     },
 }
@@ -127,6 +151,7 @@ class PvSurplusController:
         self.cfg: dict[str, Any] = {**entry.data, **entry.options}
         self.name: str = self.cfg.get(CONF_NAME) or entry.title or DEFAULT_NAME
         self.bit_index: int = int(self.cfg.get(CONF_SIGNAL_BIT) or 0)
+        self.evu_bit: int = int(self.cfg.get(CONF_EVU_BIT) or 0)
         self.settings = Settings()
         self.state = State()
         self.inputs: Inputs | None = None
@@ -139,6 +164,8 @@ class PvSurplusController:
         self._prev_mode: str | None = None
         self._last_signal_write: datetime | None = None
         self._last_signal_target: str | None = None
+        self._last_evu_write: datetime | None = None
+        self._last_evu_target: str | None = None
         self._saved_snapshot: dict | None = None
         # ok | unavailable | unit_unknown | None (no price sensor)
         self.price_state: str | None = None
@@ -161,6 +188,16 @@ class PvSurplusController:
     @property
     def has_price(self) -> bool:
         return bool(self.cfg.get(CONF_PRICE_ENTITY))
+
+    @property
+    def has_peak(self) -> bool:
+        """EVU block (peak mode): needs the EVU input, the reserve and both peak prices."""
+        return all(self.cfg.get(key) for key in PEAK_ENTITIES)
+
+    @property
+    def has_price_settings(self) -> bool:
+        """Price control switch and expensive threshold are used by both price features."""
+        return self.has_price or self.has_peak
 
     @property
     def price_unit_mode(self) -> str:
@@ -200,11 +237,13 @@ class PvSurplusController:
 
     def reset_lock(self) -> None:
         self.state.last_off = None
+        self.state.peak_last_end = None  # EVU lock time; an active block stays
         self._schedule_save(force=True)
         self.hass.async_create_task(self._async_tick())
 
     def reset_counter(self) -> None:
         self.state.activations = 0
+        self.state.peak_count = 0
         self._schedule_save(force=True)
         self.hass.async_create_task(self._async_tick())
 
@@ -264,6 +303,13 @@ class PvSurplusController:
         self.price_state = "ok" if price is not None else "unit_unknown"
         return price
 
+    def _peak_price_ct(self, key: str) -> float | None:
+        """Hourly or average price in cent per kWh (same unit setting as the price sensor)."""
+        if not self.has_peak:
+            return None
+        value, unit = self._number(key)
+        return normalize_price(value, unit, self.price_unit_mode)
+
     def _read_inputs(self, now: datetime) -> Inputs:
         grid = self._power_w(CONF_GRID_ENTITY)
         if grid is not None and self.cfg.get(CONF_GRID_SIGN) == GRID_EXPORT_POSITIVE:
@@ -276,6 +322,7 @@ class PvSurplusController:
         if pvmax is not None and unit == "W":
             pvmax = pvmax / 1000.0
         signal = self._state_obj(CONF_SIGNAL_ENTITY)
+        evu = self._state_obj(CONF_EVU_ENTITY) if self.has_peak else None
         try:
             sun_up = is_up(self.hass)
         except Exception:  # noqa: BLE001 - location not configured
@@ -293,6 +340,11 @@ class PvSurplusController:
             pvmaxcomp_kw=pvmax if self.has_compressor_control else None,
             price_configured=self.has_price,
             price_ct=self._price_ct(),
+            peak_configured=self.has_peak,
+            peak_price_ct=self._peak_price_ct(CONF_HOURLY_PRICE_ENTITY),
+            avg_price_ct=self._peak_price_ct(CONF_AVG_PRICE_ENTITY),
+            backup_reserve=self._number(CONF_BACKUP_RESERVE_ENTITY)[0] if self.has_peak else None,
+            evu_bits=evu.state if evu else None,
         )
 
     # ------------------------------------------------------------------- loop
@@ -303,7 +355,7 @@ class PvSurplusController:
         try:
             now = dt_util.now()
             inp = self._read_inputs(now)
-            res = evaluate(self.settings, self.state, inp, self.bit_index)
+            res = evaluate(self.settings, self.state, inp, self.bit_index, self.evu_bit)
             self.inputs = inp
             self.result = res
             await self._async_apply(inp, res, now)
@@ -326,6 +378,31 @@ class PvSurplusController:
         if res.stopped:
             await self._log(t["observe"] + t["would_stop"].format(reason=reason) if observe
                             else t["stop"].format(reason=reason))
+
+        peak_reason = t["reasons"].get(res.peak_reason or "", res.peak_reason or "")
+        if res.peak_started:
+            await self._log(t["observe"] + t["would_peak_start"].format(reason=peak_reason) if observe
+                            else t["peak_start"].format(reason=peak_reason))
+        if res.peak_stopped:
+            await self._log(t["observe"] + t["would_peak_stop"].format(reason=peak_reason) if observe
+                            else t["peak_stop"].format(reason=peak_reason))
+
+        # EVU input: set it while blocked. Lifting a block we set always happens,
+        # also in observe mode, so the heat pump is never left blocked.
+        if (
+            res.evu_enforce
+            and res.evu_bits_target is not None
+            and res.evu_active is not None
+            and res.evu_active != res.evu_desired
+            and (not observe or not res.evu_desired)
+        ):
+            recently = (
+                self._last_evu_write is not None
+                and self._last_evu_target == res.evu_bits_target
+                and now - self._last_evu_write < SIGNAL_REWRITE_INTERVAL
+            )
+            if not recently and await self._set_evu(res.evu_bits_target, now):
+                await self._log(t["evu"].format(old=inp.evu_bits, new=res.evu_bits_target))
 
         cheap = res.run_kind == RUN_CHEAP
         if observe:
@@ -392,6 +469,19 @@ class PvSurplusController:
         entity_id = self.cfg.get(CONF_SIGNAL_ENTITY)
         self._last_signal_write = now
         self._last_signal_target = value
+        try:
+            await self.hass.services.async_call(
+                "text", "set_value", {"entity_id": entity_id, "value": value}, blocking=True
+            )
+        except HomeAssistantError as err:
+            _LOGGER.warning("Could not write %s to %s: %s", value, entity_id, err)
+            return False
+        return True
+
+    async def _set_evu(self, value: str, now: datetime) -> bool:
+        entity_id = self.cfg.get(CONF_EVU_ENTITY)
+        self._last_evu_write = now
+        self._last_evu_target = value
         try:
             await self.hass.services.async_call(
                 "text", "set_value", {"entity_id": entity_id, "value": value}, blocking=True

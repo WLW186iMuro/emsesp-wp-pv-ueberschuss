@@ -191,6 +191,46 @@ Hat der Sensor **keine Einheit** (z. B. ein eigener Template-Sensor), wählst du
 
 > ℹ️ Die Integration steuert nicht den Wechselrichter. Ob der Hausakku während des Günstig-Betriebs in die Wärmepumpe entlädt, regelt dein Wechselrichter bzw. dessen Integration.
 
+### 7.1 Peak-Modus: EVU-Sperre bei hohem Preis und leerem Akku
+
+Ist der Strom teuer und der Hausakku leer, müsste die Wärmepumpe teuer aus dem Netz laufen. Der Peak-Modus sperrt sie dann für eine Weile über die **EVU-Sperre** – dieselbe Funktion, mit der auch ein Netzbetreiber die Wärmepumpe abschalten darf.
+
+**Einrichten:** *Integration → Konfigurieren* – alle vier Entitäten sind nötig:
+
+| Feld | Beispiel |
+|---|---|
+| EMS-ESP Eingangs-Option für die EVU-Sperre | `text.boiler_hpin1opt` |
+| Bit-Position der EVU-Sperre | `0` (erstes Zeichen, Standard) |
+| Akku-Notstromreserve in % | Reserve-Entität deines Wechselrichters |
+| Aktueller Stundenpreis | Tibber „Hourly price current“ (€/kWh oder ct/kWh) |
+| Durchschnittspreis heute | Tibber „Average price today“ (€/kWh oder ct/kWh) |
+
+Ein Strompreis-Sensor (Abschnitt 7) ist dafür nicht nötig. Der Schalter **Preissteuerung** muss aber an sein. Die Einheit erkennt die Integration wie beim Strompreis-Sensor; die Einstellung *Einheit des Strompreis-Sensors* gilt für alle Preis-Sensoren.
+
+**Sperre setzen:** Das Zeichen an der **Bit-Position** (Standard: erstes Zeichen, `1xxxxxxxxxxxxxx`) wird auf `1` gesetzt, alle anderen Zeichen bleiben, wie sie sind. Das passiert, wenn alles gleichzeitig zutrifft:
+
+| Bedingung | Standard |
+|---|---|
+| **Messwerte vorhanden:** Netz, Akku und Ladestand sowie ein gültiger Wert des EVU-Eingangs (nur `0`/`1`, Bit-Position im Muster) | |
+| Preissteuerung an, Betriebsart *Automatik*, kein PV-Betrieb | |
+| Stundenpreis ≥ **Teuer-Schwelle** | 35 ct/kWh |
+| Stundenpreis > **Tagesdurchschnitt × 108 %** | 108 % |
+| Ladestand ≤ **Notstromreserve + 2 %** | 2 % |
+| **Sperrzeit:** 60 min seit dem Aufheben der letzten EVU-Sperre vergangen | 60 min |
+| höchstens **2 Aktivierungen pro Tag** | 2 |
+| verfügbare Leistung **10 min am Stück ≤ 0 W** (Bezug aus dem Netz) | 10 min |
+
+**Sperre aufheben** (Zeichen wieder `0`):
+
+- sobald der Stundenpreis **unter Tagesdurchschnitt × 108 %** liegt (oder kein Preis mehr da ist),
+- spätestens nach der **maximalen Sperrdauer von 120 min**, egal wie hoch der Preis dann ist. Danach läuft die Sperrzeit; sind die Bedingungen anschließend noch erfüllt, kann eine zweite Sperre folgen (Tageslimit),
+- sofort, wenn **10 min lang** Netz-, Akku- oder Ladestandswert fehlen,
+- sofort, wenn die Preissteuerung ausgeschaltet oder die Betriebsart geändert wird.
+
+Während der Sperre zeigt der Status **Peak-Modus – EVU-Sperre aktiv**, und es startet kein PV-Betrieb. Alle Werte der Tabelle sind in der Einstellungsgruppe *Peak-Modus (EVU-Sperre)* änderbar (nur bei eingeschalteter Preissteuerung). Im **Beobachtungsmodus** wird nichts gesetzt; das Logbuch zeigt stattdessen „[Beobachtung] würde EVU-Sperre setzen (…)“ bzw. „… aufheben (…)“. Eine Sperre, die die Integration selbst gesetzt hat, hebt sie immer wieder auf: auch im Beobachtungsmodus und beim Entfernen der Integration.
+
+> ⚠️ Prüfe vorher in EMS-ESP, welches Zeichen von `hpin1opt` bei deiner Wärmepumpe die EVU-Sperre ist (bei Buderus/Bosch/Junkers meist das erste). Ein vom Netzbetreiber verdrahteter EVU-Kontakt wird davon nicht berührt.
+
 ## 8. Die Dashboard-Karte erklärt
 
 ![Dashboard-Karte](screenshots/karte.png)
@@ -212,7 +252,8 @@ Hat der Sensor **keine Einheit** (z. B. ein eigener Template-Sensor), wählst du
 | Kompressor | aktuelle Kompressorleistung, darunter die gesetzte Grenze (pvmaxcomp) |
 | Prognose | Solcast-Rest heute, darunter die Leistung in 30 min |
 | Netz | Leistung am Netzanschluss: Bezug oder Einspeisung |
-| Heute | Starts heute / Tageslimit, darunter die PV-Laufzeit heute |
+| PV-Überschuss heute | Starts heute / Tageslimit, darunter die PV-Laufzeit heute |
+| EVU-Sperren heute | nur mit Peak-Modus und eingeschalteter Preissteuerung: Sperren heute / Tageslimit, darunter die Laufzeit der aktuellen Sperre und bis wann sie spätestens dauert bzw. bis wann die Sperrzeit gilt |
 | Strompreis | nur mit Preissteuerung: aktueller Preis in ct/kWh, darunter günstig / normal / teuer |
 
 **Startbedingungen / Laufender PV-Betrieb**
@@ -231,7 +272,7 @@ Hat der Sensor **keine Einheit** (z. B. ein eigener Template-Sensor), wählst du
 ![Einstellungen 1](screenshots/einstellungen-1.png)
 ![Einstellungen 2](screenshots/einstellungen-2.png)
 
-**Einstellungen** (aufklappbar) mit den Gruppen *Überschuss*, *Akku & Prognose*, *Kompressorschutz & Zeiten*, *Leistungsnachführung* und – bei eingeschalteter Preissteuerung – *Strompreis*. Änderungen gelten sofort. Darunter liegen die Tasten **Sperrzeit aufheben** und **Tageszähler zurücksetzen**.
+**Einstellungen** (aufklappbar) mit den Gruppen *Solarbetrieb (PV-Überschuss)*, *Akku & Prognose*, *Kompressorschutz & Zeiten*, *Leistungsnachführung* und – bei eingeschalteter Preissteuerung – *Strompreis* und *Peak-Modus (EVU-Sperre)*. Änderungen gelten sofort. Darunter liegen die Tasten **Sperrzeit aufheben** und **Tageszähler zurücksetzen**. Mit Peak-Modus setzen sie auch die Sperrzeit bzw. den Tageszähler der EVU-Sperre zurück; eine laufende EVU-Sperre bleibt bestehen. Die Checklisten heißen **Startbedingungen Solarbetrieb (PV-Überschuss)** und **Startbedingungen Peak-Modus (EVU-Sperre)**; die zweite erscheint nur mit Peak-Modus und eingeschalteter Preissteuerung.
 
 Karten-Optionen (im Karten-Editor oder YAML):
 
@@ -292,7 +333,10 @@ Alle Einstellungen sind auch Entitäten (number / switch / select / time). Du ka
 | `binary_sensor.<name>_pv_signal_an_warmepumpe` | Bit tatsächlich gesetzt |
 | `binary_sensor.<name>_akku_freigabe` | Akku freigegeben |
 | `select.<name>_betriebsart` | Automatik / Aus / Manuell |
-| `switch.<name>_preissteuerung` | Preissteuerung an/aus (nur mit Preis-Sensor) |
+| `switch.<name>_preissteuerung` | Preissteuerung an/aus (nur mit Preis-Sensor oder Peak-Modus) |
+| `binary_sensor.<name>_evu_sperre_angefordert` | Peak-Modus: Integration will die EVU-Sperre |
+| `binary_sensor.<name>_evu_signal_an_warmepumpe` | Peak-Modus: EVU-Bit tatsächlich gesetzt |
+| `sensor.<name>_evu_sperren_heute` | Peak-Modus: EVU-Sperren heute |
 
 ![Geräteseite](screenshots/geraet.png)
 
