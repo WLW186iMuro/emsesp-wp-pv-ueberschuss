@@ -315,6 +315,7 @@ class State:
     last_status: str | None = None
     last_price: float | None = None
     last_price_at: datetime | None = None
+    price_missing_since: datetime | None = None
     samples: deque = field(default_factory=deque)
     peak_import_since: datetime | None = None
     held: dict = field(default_factory=dict)  # last good price values: key -> (time, value)
@@ -563,6 +564,17 @@ def evaluate(
             price = inp.price_ct
         elif state.last_price_at is not None and now - state.last_price_at <= PRICE_GRACE:
             price = state.last_price
+    # No price reading at all, e.g. right after a restart while a cloud price sensor is
+    # still loading. A running cheap-power run is then held instead of ended (see below).
+    if price_active and inp.price_ct is None:
+        state.price_missing_since = state.price_missing_since or now
+    else:
+        state.price_missing_since = None
+    price_hold = (
+        price is None
+        and state.price_missing_since is not None
+        and now - state.price_missing_since < PRICE_GRACE
+    )
     cheap_now = price is not None and price <= settings.price_cheap_ct
     expensive_now = price is not None and not cheap_now and price >= settings.price_expensive_ct
 
@@ -683,8 +695,8 @@ def evaluate(
         min_runtime_done = now - since >= timedelta(minutes=settings.min_runtime_min)
         if state.run_kind == RUN_CHEAP:
             # Running on cheap grid power: battery level, sun and start window do not matter.
-            if cheap_now:
-                pass
+            if cheap_now or price_hold:
+                pass  # still cheap, or price not known yet: keep running
             elif surplus_now and inp.sun_up and not soc_low:
                 state.run_kind = RUN_PV  # cheap phase over, but PV surplus carries on
                 state.deficit_since = None

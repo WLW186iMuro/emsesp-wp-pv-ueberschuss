@@ -185,7 +185,7 @@ Hat der Sensor **keine Einheit** (z. B. ein eigener Template-Sensor), wählst du
 
 **Übergänge ohne Stopp:** Läuft PV-Betrieb und der Strom wird günstig (z. B. bei Sonnenuntergang), geht es als Günstig-Betrieb weiter. Endet die Günstig-Phase und ist PV-Überschuss da, geht es als PV-Betrieb weiter. Sonst endet der Günstig-Betrieb nach der Mindestlaufzeit.
 
-**Ausfälle:** Ist der Preis-Sensor kurz nicht verfügbar (typisch zum Stunden- oder Viertelstundenwechsel), gilt der letzte Preis bis zu 15 Minuten weiter. Danach pausiert die Preissteuerung – es gibt dann keine Günstig-Starts und keine Sperre.
+**Ausfälle:** Ist der Preis-Sensor kurz nicht verfügbar (typisch zum Stunden- oder Viertelstundenwechsel), gilt der letzte Preis bis zu 15 Minuten weiter. Danach pausiert die Preissteuerung – es gibt dann keine Günstig-Starts und keine Sperre. Nach einem Neustart von Home Assistant läuft ein Günstig-Betrieb ebenfalls bis zu 15 Minuten weiter, bis der Preis-Sensor wieder einen Wert liefert.
 
 > 💡 **Feste Hoch-/Niedertarif-Zeiten ohne Preis-Sensor?** Lege einen Template-Sensor an, der je nach Uhrzeit den Preis liefert, z. B. *Einstellungen → Geräte & Dienste → Helfer → Template → Sensor* mit `{{ 22.5 if now().hour < 6 or now().hour >= 22 else 31.8 }}` und der Einheit `ct/kWh`.
 

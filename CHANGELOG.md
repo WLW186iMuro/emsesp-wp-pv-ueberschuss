@@ -11,6 +11,10 @@
   - *Sperrzeit aufheben* und *Tageszähler zurücksetzen* gelten auch für die EVU-Sperre.
   - Schalter *Preissteuerung* und *Teuer-Schwelle* gibt es auch ohne Strompreis-Sensor, wenn der Peak-Modus eingerichtet ist.
 
+## 0.3.1 – 2026-10-25
+
+- Strompreis-Steuerung: Ein Neustart von Home Assistant während eines Günstig-Betriebs beendet den Lauf nicht mehr fälschlich mit „günstige Strompreis-Phase vorbei“. Ist der Preis-Sensor nach dem Start noch nicht geladen (z. B. Cloud-Sensoren wie Octopus oder Tibber), läuft der Günstig-Betrieb bis zu 15 Minuten weiter, bis wieder ein Preis da ist. Danach entscheidet der aktuelle Preis wie gewohnt (Issue #1, danke an Sven242 für die genaue Analyse).
+
 ## 0.3.0 – 2026-10-22
 
 - **Neu: Strompreis-Steuerung (optional)** für dynamische und zeitvariable Tarife (Issue #1).

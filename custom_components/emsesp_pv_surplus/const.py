@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 DOMAIN = "emsesp_pv_surplus"
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 
 PLATFORMS = ["binary_sensor", "button", "number", "select", "sensor", "switch", "time"]
 
