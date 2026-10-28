@@ -59,8 +59,38 @@ FIELDS = {
     "price_unit": (
         "Einheit des Strompreis-Sensors",
         "Unit of the price sensor",
-        "„Automatisch“ erkennt €/kWh, ct/kWh und €/MWh aus dem Sensor. Nur ändern, wenn der Sensor keine Einheit hat.",
-        "“Automatic” detects €/kWh, ct/kWh and €/MWh from the sensor. Only change it if the sensor has no unit.",
+        "„Automatisch“ erkennt €/kWh, ct/kWh und €/MWh aus dem Sensor. Nur ändern, wenn der Sensor keine Einheit hat. Gilt für alle Preis-Sensoren.",
+        "“Automatic” detects €/kWh, ct/kWh and €/MWh from the sensor. Only change it if the sensor has no unit. Applies to all price sensors.",
+    ),
+    "evu_entity": (
+        "EMS-ESP Eingangs-Option für die EVU-Sperre (optional, z. B. hpin1opt)",
+        "EMS-ESP input option for the EVU block (optional, e.g. hpin1opt)",
+        "Peak-Modus: Text-Entität mit dem Bitmuster des EVU-Eingangs. Das gewählte Bit wird bei hohem Strompreis und leerem Akku auf 1 gesetzt (z. B. 1xxxxxxxxxxxxxx = EVU-Sperre), die übrigen Zeichen bleiben unverändert. Nur zusammen mit Notstromreserve, Stundenpreis und Durchschnittspreis.",
+        "Peak mode: text entity holding the bit pattern of the EVU input. The selected bit is set to 1 while the price is high and the battery is empty (e.g. 1xxxxxxxxxxxxxx = EVU block); the other characters stay unchanged. Only together with backup reserve, hourly price and average price.",
+    ),
+    "evu_bit": (
+        "Bit-Position der EVU-Sperre",
+        "EVU block bit position",
+        "0 = erstes Zeichen. Bei Buderus/Bosch/Junkers für die EVU-Sperre meist 0.",
+        "0 = first character. Usually 0 for the EVU block on Buderus/Bosch/Junkers.",
+    ),
+    "backup_reserve_entity": (
+        "Akku-Notstromreserve in % (optional, für den Peak-Modus)",
+        "Battery backup reserve in % (optional, for peak mode)",
+        "Reserve, die der Akku nicht unterschreitet. Die EVU-Sperre ist möglich, sobald der Ladestand höchstens Reserve + Abstand beträgt.",
+        "Reserve the battery does not go below. The EVU block is possible once the state of charge is at most reserve + margin.",
+    ),
+    "hourly_price_entity": (
+        "Aktueller Stundenpreis (optional, für den Peak-Modus)",
+        "Current hourly price (optional, for peak mode)",
+        "€/kWh oder ct/kWh, z. B. Tibber „Hourly price current“.",
+        "€/kWh or ct/kWh, e.g. Tibber “Hourly price current”.",
+    ),
+    "avg_price_entity": (
+        "Durchschnittspreis heute (optional, für den Peak-Modus)",
+        "Average price today (optional, for peak mode)",
+        "€/kWh oder ct/kWh, z. B. Tibber „Average price today“.",
+        "€/kWh or ct/kWh, e.g. Tibber “Average price today”.",
     ),
 }
 
@@ -96,6 +126,7 @@ STATUS = {
     "sensor_error": ("Messwerte fehlen", "Readings missing"),
     "price_cheap": ("Günstiger Strom – PV-Betrieb", "Cheap electricity – PV mode"),
     "price_high": ("Strompreis zu hoch", "Electricity price too high"),
+    "peak_block": ("Peak-Modus – EVU-Sperre aktiv", "Peak mode – EVU block active"),
 }
 
 ENTITIES = {
@@ -107,12 +138,15 @@ ENTITIES = {
         "activations_today": ("Aktivierungen heute", "Activations today"),
         "runtime_today": ("PV-Laufzeit heute", "PV runtime today"),
         "lock_until": ("Sperrzeit bis", "Locked until"),
+        "peak_activations_today": ("EVU-Sperren heute", "EVU blocks today"),
     },
     "binary_sensor": {
         "requested": ("PV-Betrieb angefordert", "PV mode requested"),
         "signal_active": ("PV-Signal an Wärmepumpe", "PV signal at heat pump"),
         "battery_release": ("Akku-Freigabe", "Battery release"),
         "surplus": ("Überschuss über Einschaltschwelle", "Surplus above threshold"),
+        "peak_active": ("EVU-Sperre angefordert", "EVU block requested"),
+        "evu_signal_active": ("EVU-Signal an Wärmepumpe", "EVU signal at heat pump"),
     },
     "number": {
         "on_threshold_w": ("Einschaltschwelle", "Switch-on threshold"),
@@ -135,6 +169,12 @@ ENTITIES = {
         "price_cheap_ct": ("Günstig-Schwelle", "Cheap threshold"),
         "price_expensive_ct": ("Teuer-Schwelle", "Expensive threshold"),
         "price_comp_kw": ("Kompressorleistung bei günstigem Strom", "Compressor power on cheap electricity"),
+        "peak_factor_pct": ("Peak: Preis über Tagesdurchschnitt", "Peak: price above daily average"),
+        "peak_soc_margin": ("Peak: Abstand zur Notstromreserve", "Peak: margin above backup reserve"),
+        "peak_import_min": ("Peak: Netzbezug seit mindestens", "Peak: grid import for at least"),
+        "peak_max_duration_min": ("Peak: Max. Dauer der EVU-Sperre", "Peak: max. EVU block duration"),
+        "peak_lock_min": ("Peak: Sperrzeit nach der letzten EVU-Sperre", "Peak: lock time after the last EVU lock activation"),
+        "peak_max_per_day": ("Peak: Max. Aktivierungen pro Tag", "Peak: max. activations per day"),
     },
     "switch": {
         "observe": ("Beobachtungsmodus", "Observe mode"),
@@ -176,6 +216,10 @@ TEXT = {
         "Die Einheit des Strompreis-Sensors wurde nicht erkannt. Bitte die Einheit unten von Hand auswählen.",
         "The unit of the price sensor was not recognised. Please choose the unit below manually.",
     ),
+    "peak_incomplete": (
+        "Für den Peak-Modus werden alle vier Felder benötigt: EVU-Eingang, Notstromreserve, Stundenpreis und Durchschnittspreis.",
+        "Peak mode needs all four fields: EVU input, backup reserve, hourly price and average price.",
+    ),
 }
 
 
@@ -204,6 +248,7 @@ def build(lang: int) -> dict:
             "error": {
                 "hp_power_required": TEXT["hp_power_required"][lang],
                 "price_unit_unknown": TEXT["price_unit_unknown"][lang],
+                "peak_incomplete": TEXT["peak_incomplete"][lang],
             },
             "abort": {"already_configured": TEXT["already"][lang]},
         },
@@ -218,6 +263,7 @@ def build(lang: int) -> dict:
             "error": {
                 "hp_power_required": TEXT["hp_power_required"][lang],
                 "price_unit_unknown": TEXT["price_unit_unknown"][lang],
+                "peak_incomplete": TEXT["peak_incomplete"][lang],
             },
         },
         "selector": {

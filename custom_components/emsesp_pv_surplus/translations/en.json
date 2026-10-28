@@ -18,7 +18,12 @@
           "forecast_remaining_entity": "PV forecast remaining today (optional)",
           "forecast_30min_entity": "PV forecast power in 30 minutes (optional)",
           "price_entity": "Electricity price sensor (optional, for dynamic / time-of-use tariffs)",
-          "price_unit": "Unit of the price sensor"
+          "price_unit": "Unit of the price sensor",
+          "evu_entity": "EMS-ESP input option for the EVU block (optional, e.g. hpin1opt)",
+          "evu_bit": "EVU block bit position",
+          "backup_reserve_entity": "Battery backup reserve in % (optional, for peak mode)",
+          "hourly_price_entity": "Current hourly price (optional, for peak mode)",
+          "avg_price_entity": "Average price today (optional, for peak mode)"
         },
         "data_description": {
           "name": "Display name of the device.",
@@ -30,13 +35,19 @@
           "forecast_remaining_entity": "e.g. Solcast “Forecast remaining today” (kWh).",
           "forecast_30min_entity": "e.g. Solcast “Power in 30 minutes” (W).",
           "price_entity": "Current electricity price, e.g. from Tibber, Nord Pool, EPEX Spot or Octopus. Leave empty without a dynamic tariff – then there are no price settings.",
-          "price_unit": "“Automatic” detects €/kWh, ct/kWh and €/MWh from the sensor. Only change it if the sensor has no unit."
+          "price_unit": "“Automatic” detects €/kWh, ct/kWh and €/MWh from the sensor. Only change it if the sensor has no unit. Applies to all price sensors.",
+          "evu_entity": "Peak mode: text entity holding the bit pattern of the EVU input. The selected bit is set to 1 while the price is high and the battery is empty (e.g. 1xxxxxxxxxxxxxx = EVU block); the other characters stay unchanged. Only together with backup reserve, hourly price and average price.",
+          "evu_bit": "0 = first character. Usually 0 for the EVU block on Buderus/Bosch/Junkers.",
+          "backup_reserve_entity": "Reserve the battery does not go below. The EVU block is possible once the state of charge is at most reserve + margin.",
+          "hourly_price_entity": "€/kWh or ct/kWh, e.g. Tibber “Hourly price current”.",
+          "avg_price_entity": "€/kWh or ct/kWh, e.g. Tibber “Average price today”."
         }
       }
     },
     "error": {
       "hp_power_required": "Compressor power control also needs the current compressor power.",
-      "price_unit_unknown": "The unit of the price sensor was not recognised. Please choose the unit below manually."
+      "price_unit_unknown": "The unit of the price sensor was not recognised. Please choose the unit below manually.",
+      "peak_incomplete": "Peak mode needs all four fields: EVU input, backup reserve, hourly price and average price."
     },
     "abort": {
       "already_configured": "This input entity is already set up."
@@ -59,7 +70,12 @@
           "forecast_remaining_entity": "PV forecast remaining today (optional)",
           "forecast_30min_entity": "PV forecast power in 30 minutes (optional)",
           "price_entity": "Electricity price sensor (optional, for dynamic / time-of-use tariffs)",
-          "price_unit": "Unit of the price sensor"
+          "price_unit": "Unit of the price sensor",
+          "evu_entity": "EMS-ESP input option for the EVU block (optional, e.g. hpin1opt)",
+          "evu_bit": "EVU block bit position",
+          "backup_reserve_entity": "Battery backup reserve in % (optional, for peak mode)",
+          "hourly_price_entity": "Current hourly price (optional, for peak mode)",
+          "avg_price_entity": "Average price today (optional, for peak mode)"
         },
         "data_description": {
           "signal_entity": "Text entity holding the bit pattern of the SG/PV input. The selected bit is set to 1 for PV mode (as in the evcc template: 1xxxxxxxxxxx = boost).",
@@ -70,13 +86,19 @@
           "forecast_remaining_entity": "e.g. Solcast “Forecast remaining today” (kWh).",
           "forecast_30min_entity": "e.g. Solcast “Power in 30 minutes” (W).",
           "price_entity": "Current electricity price, e.g. from Tibber, Nord Pool, EPEX Spot or Octopus. Leave empty without a dynamic tariff – then there are no price settings.",
-          "price_unit": "“Automatic” detects €/kWh, ct/kWh and €/MWh from the sensor. Only change it if the sensor has no unit."
+          "price_unit": "“Automatic” detects €/kWh, ct/kWh and €/MWh from the sensor. Only change it if the sensor has no unit. Applies to all price sensors.",
+          "evu_entity": "Peak mode: text entity holding the bit pattern of the EVU input. The selected bit is set to 1 while the price is high and the battery is empty (e.g. 1xxxxxxxxxxxxxx = EVU block); the other characters stay unchanged. Only together with backup reserve, hourly price and average price.",
+          "evu_bit": "0 = first character. Usually 0 for the EVU block on Buderus/Bosch/Junkers.",
+          "backup_reserve_entity": "Reserve the battery does not go below. The EVU block is possible once the state of charge is at most reserve + margin.",
+          "hourly_price_entity": "€/kWh or ct/kWh, e.g. Tibber “Hourly price current”.",
+          "avg_price_entity": "€/kWh or ct/kWh, e.g. Tibber “Average price today”."
         }
       }
     },
     "error": {
       "hp_power_required": "Compressor power control also needs the current compressor power.",
-      "price_unit_unknown": "The unit of the price sensor was not recognised. Please choose the unit below manually."
+      "price_unit_unknown": "The unit of the price sensor was not recognised. Please choose the unit below manually.",
+      "peak_incomplete": "Peak mode needs all four fields: EVU input, backup reserve, hourly price and average price."
     }
   },
   "selector": {
@@ -119,7 +141,8 @@
           "battery_low": "Battery below stop level",
           "sensor_error": "Readings missing",
           "price_cheap": "Cheap electricity – PV mode",
-          "price_high": "Electricity price too high"
+          "price_high": "Electricity price too high",
+          "peak_block": "Peak mode – EVU block active"
         }
       },
       "available_power": {
@@ -139,6 +162,9 @@
       },
       "lock_until": {
         "name": "Locked until"
+      },
+      "peak_activations_today": {
+        "name": "EVU blocks today"
       }
     },
     "binary_sensor": {
@@ -153,6 +179,12 @@
       },
       "surplus": {
         "name": "Surplus above threshold"
+      },
+      "peak_active": {
+        "name": "EVU block requested"
+      },
+      "evu_signal_active": {
+        "name": "EVU signal at heat pump"
       }
     },
     "number": {
@@ -215,6 +247,24 @@
       },
       "price_comp_kw": {
         "name": "Compressor power on cheap electricity"
+      },
+      "peak_factor_pct": {
+        "name": "Peak: price above daily average"
+      },
+      "peak_soc_margin": {
+        "name": "Peak: margin above backup reserve"
+      },
+      "peak_import_min": {
+        "name": "Peak: grid import for at least"
+      },
+      "peak_max_duration_min": {
+        "name": "Peak: max. EVU block duration"
+      },
+      "peak_lock_min": {
+        "name": "Peak: lock time after the last EVU lock activation"
+      },
+      "peak_max_per_day": {
+        "name": "Peak: max. activations per day"
       }
     },
     "switch": {

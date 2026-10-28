@@ -21,7 +21,7 @@ class Spec:
     maximum: float
     step: float
     unit: str | None
-    group: str  # base | forecast | compressor | price | price_comp
+    group: str  # base | forecast | compressor | price | price_any | price_comp | peak
 
 
 SPECS: list[Spec] = [
@@ -43,10 +43,16 @@ SPECS: list[Spec] = [
     Spec("comp_step_kw", 0.1, 1, 0.1, UnitOfPower.KILO_WATT, "compressor"),
     Spec("comp_interval_min", 1, 60, 1, UnitOfTime.MINUTES, "compressor"),
     Spec("price_cheap_ct", -50, 100, 0.5, PRICE_UNIT, "price"),
-    Spec("price_expensive_ct", -50, 200, 0.5, PRICE_UNIT, "price"),
+    Spec("price_expensive_ct", -50, 200, 0.5, PRICE_UNIT, "price_any"),
     Spec("price_comp_kw", 0.5, 10, 0.1, UnitOfPower.KILO_WATT, "price_comp"),
+    Spec("peak_factor_pct", 100, 200, 1, PERCENTAGE, "peak"),
+    Spec("peak_soc_margin", 0, 50, 1, PERCENTAGE, "peak"),
+    Spec("peak_import_min", 0, 60, 1, UnitOfTime.MINUTES, "peak"),
+    Spec("peak_max_duration_min", 10, 480, 5, UnitOfTime.MINUTES, "peak"),
+    Spec("peak_lock_min", 0, 720, 5, UnitOfTime.MINUTES, "peak"),
+    Spec("peak_max_per_day", 1, 10, 1, None, "peak"),
 ]
-PRICE_GROUPS = {"price", "price_comp"}
+PRICE_GROUPS = {"price", "price_any", "price_comp", "peak"}
 
 
 def groups(c) -> set[str]:
@@ -59,6 +65,10 @@ def groups(c) -> set[str]:
         out.add("price")
         if c.has_compressor_control:
             out.add("price_comp")
+    if c.has_price_settings:
+        out.add("price_any")
+    if c.has_peak:
+        out.add("peak")
     return out
 
 

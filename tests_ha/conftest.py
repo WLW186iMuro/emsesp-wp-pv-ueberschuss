@@ -16,6 +16,10 @@ SOC = "sensor.battery_soc"
 SIGNAL = "text.boiler_hpin4opt"
 PRICE = "sensor.electricity_price"
 PRICE_NO_UNIT = "sensor.price_without_unit"
+EVU = "text.boiler_hpin1opt"
+RESERVE = "sensor.battery_backup_reserve"
+HOURLY = "sensor.hourly_price_current"
+AVERAGE = "sensor.average_price_today"
 
 
 @pytest.fixture(autouse=True)
@@ -49,3 +53,7 @@ def sources(hass: HomeAssistant):
     hass.states.async_set(SIGNAL, "000000100000")
     hass.states.async_set(PRICE, "0.2431", {"unit_of_measurement": "EUR/kWh"})
     hass.states.async_set(PRICE_NO_UNIT, "24.31")
+    hass.states.async_set(EVU, "000000000001010")
+    hass.states.async_set(RESERVE, "20", {"unit_of_measurement": "%"})
+    hass.states.async_set(HOURLY, "0.2431", {"unit_of_measurement": "EUR/kWh"})
+    hass.states.async_set(AVERAGE, "22.1", {"unit_of_measurement": "ct/kWh"})

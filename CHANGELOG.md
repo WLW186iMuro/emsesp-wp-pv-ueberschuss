@@ -1,5 +1,16 @@
 # Änderungsprotokoll
 
+## Unveröffentlicht
+
+- **Neu: Peak-Modus (optional)** – EVU-Sperre der Wärmepumpe bei hohem Strompreis und leerem Akku.
+  - Neue Quell-Entitäten unter *Konfigurieren*: EMS-ESP Eingangs-Option für die EVU-Sperre (z. B. `text.boiler_hpin1opt`) mit Bit-Position (Standard 0), Akku-Notstromreserve, aktueller Stundenpreis, Durchschnittspreis heute. Nur alle vier zusammen.
+  - Sperre (gewähltes Bit → `1`, die übrigen bleiben) bei: Preissteuerung an, Automatik ohne PV-Betrieb, Stundenpreis ≥ Teuer-Schwelle und > 108 % des Tagesdurchschnitts, Ladestand ≤ Reserve + 2 %, 10 min Netzbezug am Stück, 60 min Pause, max. 2 pro Tag.
+  - Aufhebung, sobald der Preis unter 108 % des Durchschnitts fällt, spätestens nach der maximalen Sperrdauer (120 min) unabhängig vom Preis; sofort bei 10 min fehlenden Messwerten, ausgeschalteter Preissteuerung oder geänderter Betriebsart.
+  - Beobachtungsmodus: keine Sperre, aber Logbuch-Eintrag „[Beobachtung] würde EVU-Sperre setzen / aufheben“.
+  - Neuer Status „Peak-Modus – EVU-Sperre aktiv“, eigener Abschnitt und Kachel „EVU-Sperren heute“ auf der Karte, alle Werte als Einstellungen.
+  - *Sperrzeit aufheben* und *Tageszähler zurücksetzen* gelten auch für die EVU-Sperre.
+  - Schalter *Preissteuerung* und *Teuer-Schwelle* gibt es auch ohne Strompreis-Sensor, wenn der Peak-Modus eingerichtet ist.
+
 ## 0.3.0 – 2026-10-22
 
 - **Neu: Strompreis-Steuerung (optional)** für dynamische und zeitvariable Tarife (Issue #1).

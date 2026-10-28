@@ -18,7 +18,12 @@
           "forecast_remaining_entity": "PV-Prognose verbleibend heute (optional)",
           "forecast_30min_entity": "PV-Prognose Leistung in 30 Minuten (optional)",
           "price_entity": "Strompreis-Sensor (optional, für dynamische / zeitvariable Tarife)",
-          "price_unit": "Einheit des Strompreis-Sensors"
+          "price_unit": "Einheit des Strompreis-Sensors",
+          "evu_entity": "EMS-ESP Eingangs-Option für die EVU-Sperre (optional, z. B. hpin1opt)",
+          "evu_bit": "Bit-Position der EVU-Sperre",
+          "backup_reserve_entity": "Akku-Notstromreserve in % (optional, für den Peak-Modus)",
+          "hourly_price_entity": "Aktueller Stundenpreis (optional, für den Peak-Modus)",
+          "avg_price_entity": "Durchschnittspreis heute (optional, für den Peak-Modus)"
         },
         "data_description": {
           "name": "Anzeigename des Geräts.",
@@ -30,13 +35,19 @@
           "forecast_remaining_entity": "z. B. Solcast „Prognose verbleibende Leistung heute“ (kWh).",
           "forecast_30min_entity": "z. B. Solcast „Leistung in 30 Minuten“ (W).",
           "price_entity": "Aktueller Strompreis, z. B. von Tibber, Nord Pool, EPEX Spot oder Octopus. Leer lassen, wenn du keinen dynamischen Tarif hast – dann gibt es keine Preis-Einstellungen.",
-          "price_unit": "„Automatisch“ erkennt €/kWh, ct/kWh und €/MWh aus dem Sensor. Nur ändern, wenn der Sensor keine Einheit hat."
+          "price_unit": "„Automatisch“ erkennt €/kWh, ct/kWh und €/MWh aus dem Sensor. Nur ändern, wenn der Sensor keine Einheit hat. Gilt für alle Preis-Sensoren.",
+          "evu_entity": "Peak-Modus: Text-Entität mit dem Bitmuster des EVU-Eingangs. Das gewählte Bit wird bei hohem Strompreis und leerem Akku auf 1 gesetzt (z. B. 1xxxxxxxxxxxxxx = EVU-Sperre), die übrigen Zeichen bleiben unverändert. Nur zusammen mit Notstromreserve, Stundenpreis und Durchschnittspreis.",
+          "evu_bit": "0 = erstes Zeichen. Bei Buderus/Bosch/Junkers für die EVU-Sperre meist 0.",
+          "backup_reserve_entity": "Reserve, die der Akku nicht unterschreitet. Die EVU-Sperre ist möglich, sobald der Ladestand höchstens Reserve + Abstand beträgt.",
+          "hourly_price_entity": "€/kWh oder ct/kWh, z. B. Tibber „Hourly price current“.",
+          "avg_price_entity": "€/kWh oder ct/kWh, z. B. Tibber „Average price today“."
         }
       }
     },
     "error": {
       "hp_power_required": "Für die Leistungsnachführung wird auch die aktuelle Kompressorleistung benötigt.",
-      "price_unit_unknown": "Die Einheit des Strompreis-Sensors wurde nicht erkannt. Bitte die Einheit unten von Hand auswählen."
+      "price_unit_unknown": "Die Einheit des Strompreis-Sensors wurde nicht erkannt. Bitte die Einheit unten von Hand auswählen.",
+      "peak_incomplete": "Für den Peak-Modus werden alle vier Felder benötigt: EVU-Eingang, Notstromreserve, Stundenpreis und Durchschnittspreis."
     },
     "abort": {
       "already_configured": "Für diese Eingangs-Entität gibt es schon eine Einrichtung."
@@ -59,7 +70,12 @@
           "forecast_remaining_entity": "PV-Prognose verbleibend heute (optional)",
           "forecast_30min_entity": "PV-Prognose Leistung in 30 Minuten (optional)",
           "price_entity": "Strompreis-Sensor (optional, für dynamische / zeitvariable Tarife)",
-          "price_unit": "Einheit des Strompreis-Sensors"
+          "price_unit": "Einheit des Strompreis-Sensors",
+          "evu_entity": "EMS-ESP Eingangs-Option für die EVU-Sperre (optional, z. B. hpin1opt)",
+          "evu_bit": "Bit-Position der EVU-Sperre",
+          "backup_reserve_entity": "Akku-Notstromreserve in % (optional, für den Peak-Modus)",
+          "hourly_price_entity": "Aktueller Stundenpreis (optional, für den Peak-Modus)",
+          "avg_price_entity": "Durchschnittspreis heute (optional, für den Peak-Modus)"
         },
         "data_description": {
           "signal_entity": "Text-Entität mit dem Bitmuster des SG-/PV-Eingangs. Das gewählte Bit wird für den PV-Betrieb auf 1 gesetzt (wie im evcc-Template: 1xxxxxxxxxxx = Boost).",
@@ -70,13 +86,19 @@
           "forecast_remaining_entity": "z. B. Solcast „Prognose verbleibende Leistung heute“ (kWh).",
           "forecast_30min_entity": "z. B. Solcast „Leistung in 30 Minuten“ (W).",
           "price_entity": "Aktueller Strompreis, z. B. von Tibber, Nord Pool, EPEX Spot oder Octopus. Leer lassen, wenn du keinen dynamischen Tarif hast – dann gibt es keine Preis-Einstellungen.",
-          "price_unit": "„Automatisch“ erkennt €/kWh, ct/kWh und €/MWh aus dem Sensor. Nur ändern, wenn der Sensor keine Einheit hat."
+          "price_unit": "„Automatisch“ erkennt €/kWh, ct/kWh und €/MWh aus dem Sensor. Nur ändern, wenn der Sensor keine Einheit hat. Gilt für alle Preis-Sensoren.",
+          "evu_entity": "Peak-Modus: Text-Entität mit dem Bitmuster des EVU-Eingangs. Das gewählte Bit wird bei hohem Strompreis und leerem Akku auf 1 gesetzt (z. B. 1xxxxxxxxxxxxxx = EVU-Sperre), die übrigen Zeichen bleiben unverändert. Nur zusammen mit Notstromreserve, Stundenpreis und Durchschnittspreis.",
+          "evu_bit": "0 = erstes Zeichen. Bei Buderus/Bosch/Junkers für die EVU-Sperre meist 0.",
+          "backup_reserve_entity": "Reserve, die der Akku nicht unterschreitet. Die EVU-Sperre ist möglich, sobald der Ladestand höchstens Reserve + Abstand beträgt.",
+          "hourly_price_entity": "€/kWh oder ct/kWh, z. B. Tibber „Hourly price current“.",
+          "avg_price_entity": "€/kWh oder ct/kWh, z. B. Tibber „Average price today“."
         }
       }
     },
     "error": {
       "hp_power_required": "Für die Leistungsnachführung wird auch die aktuelle Kompressorleistung benötigt.",
-      "price_unit_unknown": "Die Einheit des Strompreis-Sensors wurde nicht erkannt. Bitte die Einheit unten von Hand auswählen."
+      "price_unit_unknown": "Die Einheit des Strompreis-Sensors wurde nicht erkannt. Bitte die Einheit unten von Hand auswählen.",
+      "peak_incomplete": "Für den Peak-Modus werden alle vier Felder benötigt: EVU-Eingang, Notstromreserve, Stundenpreis und Durchschnittspreis."
     }
   },
   "selector": {
@@ -119,7 +141,8 @@
           "battery_low": "Akku unter Abschaltgrenze",
           "sensor_error": "Messwerte fehlen",
           "price_cheap": "Günstiger Strom – PV-Betrieb",
-          "price_high": "Strompreis zu hoch"
+          "price_high": "Strompreis zu hoch",
+          "peak_block": "Peak-Modus – EVU-Sperre aktiv"
         }
       },
       "available_power": {
@@ -139,6 +162,9 @@
       },
       "lock_until": {
         "name": "Sperrzeit bis"
+      },
+      "peak_activations_today": {
+        "name": "EVU-Sperren heute"
       }
     },
     "binary_sensor": {
@@ -153,6 +179,12 @@
       },
       "surplus": {
         "name": "Überschuss über Einschaltschwelle"
+      },
+      "peak_active": {
+        "name": "EVU-Sperre angefordert"
+      },
+      "evu_signal_active": {
+        "name": "EVU-Signal an Wärmepumpe"
       }
     },
     "number": {
@@ -215,6 +247,24 @@
       },
       "price_comp_kw": {
         "name": "Kompressorleistung bei günstigem Strom"
+      },
+      "peak_factor_pct": {
+        "name": "Peak: Preis über Tagesdurchschnitt"
+      },
+      "peak_soc_margin": {
+        "name": "Peak: Abstand zur Notstromreserve"
+      },
+      "peak_import_min": {
+        "name": "Peak: Netzbezug seit mindestens"
+      },
+      "peak_max_duration_min": {
+        "name": "Peak: Max. Dauer der EVU-Sperre"
+      },
+      "peak_lock_min": {
+        "name": "Peak: Sperrzeit nach der letzten EVU-Sperre"
+      },
+      "peak_max_per_day": {
+        "name": "Peak: Max. Aktivierungen pro Tag"
       }
     },
     "switch": {
