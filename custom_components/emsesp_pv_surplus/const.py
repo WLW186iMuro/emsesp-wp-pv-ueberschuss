@@ -23,6 +23,18 @@ CONF_FORECAST_REMAINING_ENTITY = "forecast_remaining_entity"
 CONF_FORECAST_30MIN_ENTITY = "forecast_30min_entity"
 CONF_PRICE_ENTITY = "price_entity"
 CONF_PRICE_UNIT = "price_unit"
+CONF_EVU_ENTITY = "evu_entity"
+CONF_EVU_BIT = "evu_bit"
+CONF_BACKUP_RESERVE_ENTITY = "backup_reserve_entity"
+CONF_HOURLY_PRICE_ENTITY = "hourly_price_entity"
+CONF_AVG_PRICE_ENTITY = "avg_price_entity"
+# All four are needed for the EVU block (peak mode)
+PEAK_ENTITIES = [
+    CONF_EVU_ENTITY,
+    CONF_BACKUP_RESERVE_ENTITY,
+    CONF_HOURLY_PRICE_ENTITY,
+    CONF_AVG_PRICE_ENTITY,
+]
 
 GRID_IMPORT_POSITIVE = "import_positive"
 GRID_EXPORT_POSITIVE = "export_positive"

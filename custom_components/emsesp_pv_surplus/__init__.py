@@ -19,6 +19,8 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     CARD_FILE,
+    CONF_EVU_BIT,
+    CONF_EVU_ENTITY,
     CONF_SIGNAL_BIT,
     CONF_SIGNAL_ENTITY,
     DOMAIN,
@@ -154,4 +156,19 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
             )
         except HomeAssistantError as err:
             _LOGGER.warning("Could not reset %s: %s", entity_id, err)
+    # Lift an EVU block we set (also in observe mode, see controller)
+    evu_written = (data.get("state") or {}).get("evu_written")
+    evu_id = cfg.get(CONF_EVU_ENTITY)
+    evu = hass.states.get(evu_id) if evu_id else None
+    evu_bit = int(cfg.get(CONF_EVU_BIT) or 0)
+    if evu_written and evu and valid_bits(evu.state, evu_bit) and evu.state[evu_bit] == "1":
+        try:
+            await hass.services.async_call(
+                "text",
+                "set_value",
+                {"entity_id": evu_id, "value": set_bit(evu.state, evu_bit, False)},
+                blocking=True,
+            )
+        except HomeAssistantError as err:
+            _LOGGER.warning("Could not reset %s: %s", evu_id, err)
     await store.async_remove()

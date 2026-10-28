@@ -14,11 +14,16 @@ from .const import (
     BATTERY_CHARGE_POSITIVE,
     BATTERY_DISCHARGE_POSITIVE,
     CONF_BATTERY_POWER_ENTITY,
+    CONF_AVG_PRICE_ENTITY,
+    CONF_BACKUP_RESERVE_ENTITY,
     CONF_BATTERY_SIGN,
+    CONF_EVU_BIT,
+    CONF_EVU_ENTITY,
     CONF_FORECAST_30MIN_ENTITY,
     CONF_FORECAST_REMAINING_ENTITY,
     CONF_GRID_ENTITY,
     CONF_GRID_SIGN,
+    CONF_HOURLY_PRICE_ENTITY,
     CONF_HP_POWER_ENTITY,
     CONF_NAME,
     CONF_PRICE_ENTITY,
@@ -32,6 +37,7 @@ from .const import (
     DOMAIN,
     GRID_EXPORT_POSITIVE,
     GRID_IMPORT_POSITIVE,
+    PEAK_ENTITIES,
 )
 from .logic import PRICE_UNIT_AUTO, PRICE_UNIT_MODES, price_unit_factor
 
@@ -41,7 +47,9 @@ OPTIONAL_ENTITIES = [
     CONF_FORECAST_REMAINING_ENTITY,
     CONF_FORECAST_30MIN_ENTITY,
     CONF_PRICE_ENTITY,
+    *PEAK_ENTITIES,
 ]
+PRICE_ENTITIES = [CONF_PRICE_ENTITY, CONF_HOURLY_PRICE_ENTITY, CONF_AVG_PRICE_ENTITY]
 
 
 def _entity(domain: str, device_class: str | None = None) -> selector.EntitySelector:
@@ -92,6 +100,19 @@ def _schema(include_name: bool, name: str = DEFAULT_NAME) -> vol.Schema:
                     mode=selector.SelectSelectorMode.DROPDOWN,
                 )
             ),
+            vol.Optional(CONF_EVU_ENTITY): _entity("text"),
+            vol.Required(CONF_EVU_BIT, default=0): selector.NumberSelector(
+                selector.NumberSelectorConfig(min=0, max=14, step=1, mode=selector.NumberSelectorMode.BOX)
+            ),
+            vol.Optional(CONF_BACKUP_RESERVE_ENTITY): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["sensor", "number", "input_number"])
+            ),
+            vol.Optional(CONF_HOURLY_PRICE_ENTITY): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["sensor", "input_number"])
+            ),
+            vol.Optional(CONF_AVG_PRICE_ENTITY): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["sensor", "input_number"])
+            ),
         }
     )
     return vol.Schema(fields)
@@ -101,23 +122,30 @@ def _validate(hass, user_input: dict[str, Any]) -> dict[str, str]:
     errors: dict[str, str] = {}
     if user_input.get(CONF_PVMAXCOMP_ENTITY) and not user_input.get(CONF_HP_POWER_ENTITY):
         errors[CONF_HP_POWER_ENTITY] = "hp_power_required"
-    price_entity = user_input.get(CONF_PRICE_ENTITY)
-    if price_entity and (user_input.get(CONF_PRICE_UNIT) or PRICE_UNIT_AUTO) == PRICE_UNIT_AUTO:
-        st = hass.states.get(price_entity)
-        unit = st.attributes.get("unit_of_measurement") if st else None
-        # Only complain when the sensor is there and its unit cannot be recognised.
-        if (
-            st is not None
-            and st.state not in ("unknown", "unavailable", "")
-            and price_unit_factor(unit) is None
-        ):
-            errors[CONF_PRICE_UNIT] = "price_unit_unknown"
+    # The EVU block (peak mode) needs all of its entities or none
+    if any(user_input.get(key) for key in PEAK_ENTITIES):
+        for key in PEAK_ENTITIES:
+            if not user_input.get(key):
+                errors[key] = "peak_incomplete"
+    if (user_input.get(CONF_PRICE_UNIT) or PRICE_UNIT_AUTO) == PRICE_UNIT_AUTO:
+        for key in PRICE_ENTITIES:
+            price_entity = user_input.get(key)
+            st = hass.states.get(price_entity) if price_entity else None
+            unit = st.attributes.get("unit_of_measurement") if st else None
+            # Only complain when the sensor is there and its unit cannot be recognised.
+            if (
+                st is not None
+                and st.state not in ("unknown", "unavailable", "")
+                and price_unit_factor(unit) is None
+            ):
+                errors[CONF_PRICE_UNIT] = "price_unit_unknown"
     return errors
 
 
 def _normalize(user_input: dict[str, Any]) -> dict[str, Any]:
     data = dict(user_input)
     data[CONF_SIGNAL_BIT] = int(data.get(CONF_SIGNAL_BIT) or 0)
+    data[CONF_EVU_BIT] = int(data.get(CONF_EVU_BIT) or 0)
     for key in OPTIONAL_ENTITIES:
         data[key] = data.get(key) or None
     if data.get(CONF_PRICE_UNIT) not in PRICE_UNIT_MODES:
