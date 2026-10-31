@@ -61,6 +61,7 @@ R_MODE_AUTO = "mode_auto"
 R_CHEAP = "price_cheap"
 R_PRICE_END = "price_end"
 R_PRICE_HIGH = "price_high"
+R_IDLE = "hp_idle"
 
 # Why the heat pump is currently in PV mode
 RUN_PV = "pv"
@@ -90,6 +91,8 @@ CHECK_KEYS = [
 
 SOC_STOP_DELAY = timedelta(minutes=2)
 SENSOR_FAIL_DELAY = timedelta(minutes=10)
+# Compressor counts as running from this power on (standby is well below)
+HP_RUNNING_W = 200.0
 # Short dropouts (EMS-ESP/MQTT reconnects, inverter polling gaps) are common.
 # Keep the previous status for this long before reporting a sensor error.
 SENSOR_STATUS_GRACE = timedelta(minutes=2)
@@ -144,6 +147,7 @@ class Settings:
     price_expensive_ct: float = 35.0
     price_stop_expensive: bool = False
     price_comp_kw: float = 2.5
+    idle_stop_min: float = 0.0  # 0 = off
 
     def to_dict(self) -> dict:
         out = {}
@@ -279,6 +283,8 @@ class State:
     last_price: float | None = None
     last_price_at: datetime | None = None
     price_missing_since: datetime | None = None
+    hp_seen_running: bool = False
+    hp_idle_since: datetime | None = None
     samples: deque = field(default_factory=deque)
 
     def to_dict(self) -> dict:
@@ -343,6 +349,7 @@ class Result:
     lock_until: datetime | None = None
     min_runtime_until: datetime | None = None
     surplus_since: datetime | None = None
+    hp_idle_since: datetime | None = None
     deficit_since: datetime | None = None
     runtime_today_s: float = 0.0
     run_kind: str | None = None
@@ -497,6 +504,24 @@ def evaluate(settings: Settings, state: State, inp: Inputs, bit_index: int = 0) 
     cheap_now = price is not None and price <= settings.price_cheap_ct
     expensive_now = price is not None and not cheap_now and price >= settings.price_expensive_ct
 
+    # Compressor activity during a run: end the run once the heat pump is done
+    # (compressor ran, then stood still for the set time) so it does not start again.
+    if state.requested and settings.mode == MODE_AUTO:
+        if inp.hp_power_w is not None:
+            if inp.hp_power_w >= HP_RUNNING_W:
+                state.hp_seen_running = True
+                state.hp_idle_since = None
+            elif state.hp_seen_running:
+                state.hp_idle_since = state.hp_idle_since or now
+    else:
+        state.hp_seen_running = False
+        state.hp_idle_since = None
+    idle_done = (
+        settings.idle_stop_min > 0
+        and state.hp_idle_since is not None
+        and now - state.hp_idle_since >= timedelta(minutes=settings.idle_stop_min)
+    )
+
     lock_until = (
         state.last_off + timedelta(minutes=settings.lock_min) if state.last_off else None
     )
@@ -539,6 +564,8 @@ def evaluate(settings: Settings, state: State, inp: Inputs, bit_index: int = 0) 
         state.requested_since = None
         state.last_off = now
         state.deficit_since = None
+        state.hp_seen_running = False
+        state.hp_idle_since = None
         state.last_action = f"stop:{reason}"
         state.last_action_at = now
         result.stopped = True
@@ -555,7 +582,9 @@ def evaluate(settings: Settings, state: State, inp: Inputs, bit_index: int = 0) 
         min_runtime_done = now - since >= timedelta(minutes=settings.min_runtime_min)
         if state.run_kind == RUN_CHEAP:
             # Running on cheap grid power: battery level, sun and start window do not matter.
-            if cheap_now or price_hold:
+            if idle_done:
+                stop(R_IDLE)
+            elif cheap_now or price_hold:
                 pass  # still cheap, or price not known yet: keep running
             elif surplus_now and inp.sun_up and not soc_low:
                 state.run_kind = RUN_PV  # cheap phase over, but PV surplus carries on
@@ -573,6 +602,8 @@ def evaluate(settings: Settings, state: State, inp: Inputs, bit_index: int = 0) 
                 stop(R_NIGHT)
             elif state.sensor_fail_since and now - state.sensor_fail_since >= SENSOR_FAIL_DELAY:
                 stop(R_SENSOR)
+            elif idle_done:
+                stop(R_IDLE)
             elif (
                 min_runtime_done
                 and state.deficit_since is not None
@@ -685,6 +716,7 @@ def evaluate(settings: Settings, state: State, inp: Inputs, bit_index: int = 0) 
         until = state.requested_since + timedelta(minutes=settings.min_runtime_min)
         result.min_runtime_until = until if now < until else None
     result.surplus_since = state.surplus_since
+    result.hp_idle_since = state.hp_idle_since if state.requested else None
     result.deficit_since = state.deficit_since
     result.runtime_today_s = state.runtime_s
     result.run_kind = state.run_kind if state.requested else None

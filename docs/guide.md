@@ -133,10 +133,13 @@ If the surplus drops below the threshold during the switch-on delay, the delay s
 | Battery too low | immediately, when the SoC is below the stop level (50 %) for 2 min |
 | Sunset | immediately |
 | Readings missing | after 10 min without grid, battery or SoC value |
+| Heat pump done (optional) | when the compressor has run during PV mode and then stood still for the time set in *End after compressor idle* (default 0 = off) |
 
 Between −800 W and +1500 W the heat pump simply keeps running. That's the **hysteresis**. It keeps a passing cloud from turning the compressor off.
 
 After each stop the **lock time** (120 min) starts. A new start is only possible after that, at most 2 per day.
+
+**End after compressor idle (optional, only with compressor power control):** while the PV signal is on, the heat pump usually uses a higher DHW setpoint. If it does not quite get there with little compressor power, it gives up and, after its own pause, starts another, often useless attempt. With this setting the integration ends PV mode once the compressor has run and then stood still (below 200 W) for the set time. The lock time follows. Pick a time longer than your heat pump's normal pause between DHW and heating (about 15 min on the WLW186i), e.g. **20 min**. Otherwise PV mode ends before the heat pump goes on heating with the PV raise.
 
 ## 6. Compressor power control (pvmaxcomp)
 
@@ -258,6 +261,7 @@ show_settings: true     # show the settings
 | No battery | create template sensors for battery power (always 0 W) and SoC (100 %) |
 | Bigger heat pump (9–12 kW) | raise *Compressor power max.*, e.g. 3.5–4 kW |
 | Heat pump still cycles | raise *Minimum runtime* and *Lock time*, set *Max. activations* to 1 |
+| Second DHW start in PV mode | set *End after compressor idle* to 20 min |
 | Starts too rarely | lower the *Switch-on threshold* (e.g. 1200 W), widen the *start window* |
 | Often grid import in PV mode | move the *Switch-off threshold* closer to 0 (e.g. −400 W), raise the *Power reserve* |
 

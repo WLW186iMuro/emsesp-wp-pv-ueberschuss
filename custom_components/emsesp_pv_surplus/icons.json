@@ -111,6 +111,9 @@
       },
       "price_comp_kw": {
         "default": "mdi:speedometer"
+      },
+      "idle_stop_min": {
+        "default": "mdi:sleep"
       }
     },
     "switch": {

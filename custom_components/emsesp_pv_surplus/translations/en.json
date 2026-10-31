@@ -207,6 +207,9 @@
       "comp_interval_min": {
         "name": "Adjustment interval"
       },
+      "idle_stop_min": {
+        "name": "End after compressor idle"
+      },
       "price_cheap_ct": {
         "name": "Cheap threshold"
       },

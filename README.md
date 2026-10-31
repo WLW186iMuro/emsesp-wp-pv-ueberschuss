@@ -131,6 +131,7 @@ Alle Einstellungen sind Entitäten (number / switch / select / time). Du kannst 
 | Akku-Abschaltgrenze | 50 % | darunter Stopp und keine Starts |
 | Mindestlaufzeit | 30 min | vorher kein Stopp wegen fehlenden Überschusses |
 | Sperrzeit | 120 min | nach jedem Stopp |
+| Beenden nach Kompressor-Stillstand | 0 min (aus) | PV-Betrieb beenden, wenn der Kompressor gelaufen ist und dann so lange steht; nur mit Leistungsnachführung |
 | Max. Aktivierungen pro Tag | 2 | |
 | Startfenster | 10:00–16:00 | Starts nur in diesem Fenster, Stopps jederzeit |
 | Kompressorleistung min./max. | 1,0 / 2,5 kW | Bereich für `pvmaxcomp` |
@@ -304,6 +305,7 @@ All settings are entities (number / switch / select / time), so you can also use
 | Battery stop level | 50 % | stops PV mode and blocks starts below this SoC |
 | Minimum runtime | 30 min | no deficit stop before this |
 | Lock time | 120 min | after each stop |
+| End after compressor idle | 0 min (off) | end PV mode once the compressor has run and then stood still this long; only with compressor power control |
 | Max. activations per day | 2 | |
 | Start window | 10:00–16:00 | starts only in this window; stops are always possible |
 | Compressor power min. / max. | 1.0 / 2.5 kW | range for `pvmaxcomp` |

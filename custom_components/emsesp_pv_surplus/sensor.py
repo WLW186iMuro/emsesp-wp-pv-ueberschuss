@@ -82,6 +82,7 @@ class StatusSensor(PvSurplusEntity, SensorEntity):
             "price_cheap_ct",
             "price_expensive_ct",
             "run_kind",
+            "hp_idle_since",
         }
     )
 
@@ -121,6 +122,7 @@ class StatusSensor(PvSurplusEntity, SensorEntity):
             {
                 "checks": {k: res.checks[k] for k in CHECK_KEYS if k in res.checks},
                 "run_kind": res.run_kind,
+                "hp_idle_since": _iso(res.hp_idle_since),
                 "price_ct": _r(res.price_ct, 2),
                 "price_cheap": res.price_cheap,
                 "price_expensive": res.price_expensive,

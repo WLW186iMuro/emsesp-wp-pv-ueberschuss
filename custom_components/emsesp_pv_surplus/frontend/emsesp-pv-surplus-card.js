@@ -7,7 +7,7 @@
   const DOMAIN = "emsesp_pv_surplus";
   const CARD = "emsesp-pv-surplus-card";
   const EDITOR = "emsesp-pv-surplus-card-editor";
-  const VERSION = "0.3.1";
+  const VERSION = "0.4.0";
 
   const T = {
     de: {
@@ -93,6 +93,7 @@
         comp_reserve_kw: ["Leistungsreserve", "wird vom Budget abgezogen"],
         comp_step_kw: ["Mindeständerung", "kleinere Änderungen werden nicht geschrieben"],
         comp_interval_min: ["Anpassungsintervall", "Mittelwert und Takt"],
+        idle_stop_min: ["Beenden nach Kompressor-Stillstand", "PV-Betrieb beenden, wenn der Kompressor so lange steht (0 = aus)"],
         price_cheap_ct: ["Günstig-Schwelle", "darunter PV-Betrieb auch ohne Überschuss"],
         price_expensive_ct: ["Teuer-Schwelle", "darüber keine Starts"],
         price_stop_expensive: ["Bei teurem Strom beenden", "laufenden PV-Betrieb nach der Mindestlaufzeit stoppen"],
@@ -185,6 +186,7 @@
         comp_reserve_kw: ["Power reserve", "subtracted from the budget"],
         comp_step_kw: ["Minimum change", "smaller changes are not written"],
         comp_interval_min: ["Adjustment interval", "averaging window and cadence"],
+        idle_stop_min: ["End after compressor idle", "end PV mode once the compressor has stood still this long (0 = off)"],
         price_cheap_ct: ["Cheap threshold", "below this, PV mode even without surplus"],
         price_expensive_ct: ["Expensive threshold", "above this, no starts"],
         price_stop_expensive: ["Stop when expensive", "end running PV mode after the minimum runtime"],
@@ -199,7 +201,7 @@
   const GROUPS = [
     ["surplus", ["on_threshold_w", "off_threshold_w", "on_delay_min", "off_delay_min"]],
     ["battery", ["soc_release", "soc_stop", "soc_forecast", "battery_capacity_kwh", "forecast_reserve_kwh"]],
-    ["protect", ["min_runtime_min", "lock_min", "max_activations", "window_start", "window_end"]],
+    ["protect", ["min_runtime_min", "lock_min", "max_activations", "idle_stop_min", "window_start", "window_end"]],
     ["compressor", ["comp_min_kw", "comp_max_kw", "comp_reserve_kw", "comp_step_kw", "comp_interval_min"]],
     ["price", ["price_cheap_ct", "price_expensive_ct", "price_stop_expensive", "price_comp_kw"]],
   ];

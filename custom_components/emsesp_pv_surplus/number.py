@@ -42,6 +42,7 @@ SPECS: list[Spec] = [
     Spec("comp_reserve_kw", 0, 2, 0.1, UnitOfPower.KILO_WATT, "compressor"),
     Spec("comp_step_kw", 0.1, 1, 0.1, UnitOfPower.KILO_WATT, "compressor"),
     Spec("comp_interval_min", 1, 60, 1, UnitOfTime.MINUTES, "compressor"),
+    Spec("idle_stop_min", 0, 120, 5, UnitOfTime.MINUTES, "compressor"),
     Spec("price_cheap_ct", -50, 100, 0.5, PRICE_UNIT, "price"),
     Spec("price_expensive_ct", -50, 200, 0.5, PRICE_UNIT, "price"),
     Spec("price_comp_kw", 0.5, 10, 0.1, UnitOfPower.KILO_WATT, "price_comp"),

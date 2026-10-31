@@ -662,3 +662,105 @@ class TestPrice(unittest.TestCase):
         s2 = logic.Settings.from_dict(s1.to_dict())
         self.assertEqual(s1, s2)
         self.assertFalse(logic.Settings.from_dict({"mode": "auto"}).price_control)
+
+
+def idle_sim(**kw):
+    """Running PV mode with plenty of surplus; the heat pump starts right away."""
+    kw.setdefault("min_runtime_min", 60)
+    sim = Sim(observe=False, **kw)
+    sim.grid_w = -2500
+    sim.run(6)
+    assert sim.state.requested
+    sim.hp_w = 1100  # compressor running (DHW)
+    sim.run(30)
+    return sim
+
+
+class TestIdleStop(unittest.TestCase):
+    def test_off_by_default(self):
+        sim = idle_sim()
+        sim.hp_w = 40
+        sim.run(120)
+        self.assertTrue(sim.state.requested)
+        self.assertNotIn("stop:hp_idle", sim.events)
+
+    def test_ends_when_heat_pump_is_done(self):
+        # 31.10.: DHW done, compressor stands still, the heat pump would start again after ~31 min
+        sim = idle_sim(idle_stop_min=20)
+        sim.hp_w = 40
+        res = sim.run(19)
+        self.assertTrue(sim.state.requested)
+        self.assertIsNotNone(res.hp_idle_since)
+        sim.run(1.25)
+        self.assertFalse(sim.state.requested)
+        self.assertIn("stop:hp_idle", sim.events)
+        self.assertEqual(sim.bits, BITS_OFF)
+        sim.run(60)  # surplus still there, but the lock time keeps it off
+        self.assertFalse(sim.state.requested)
+        self.assertEqual(sim.last.status, logic.ST_LOCKED)
+
+    def test_short_pause_keeps_running(self):
+        # 22.10.: 15 min compressor pause between DHW and heating, then heating with PV raise
+        sim = idle_sim(idle_stop_min=20)
+        sim.hp_w = 40
+        sim.run(15)
+        sim.hp_w = 900
+        sim.step()
+        self.assertIsNone(sim.last.hp_idle_since)
+        sim.hp_w = 40
+        sim.run(19)
+        self.assertTrue(sim.state.requested)  # idle timer started over
+        self.assertNotIn("stop:hp_idle", sim.events)
+
+    def test_standby_spikes_do_not_count_as_running(self):
+        sim = idle_sim(idle_stop_min=20)
+        sim.hp_w = 40
+        sim.run(10)
+        sim.hp_w = 115  # standby spike seen on the WLW186i
+        sim.step()
+        sim.hp_w = 40
+        sim.run(10)
+        self.assertFalse(sim.state.requested)
+        self.assertIn("stop:hp_idle", sim.events)
+
+    def test_waits_until_the_compressor_has_run(self):
+        sim = Sim(observe=False, idle_stop_min=10, min_runtime_min=60)
+        sim.grid_w = -2500
+        sim.hp_w = 40  # heat pump slow to react to the signal
+        sim.run(40)
+        self.assertTrue(sim.state.requested)
+        self.assertNotIn("stop:hp_idle", sim.events)
+
+    def test_missing_power_reading_does_not_stop(self):
+        sim = idle_sim(idle_stop_min=20)
+        sim.hp_w = None
+        sim.run(60)
+        self.assertTrue(sim.state.requested)
+
+    def test_cheap_run_also_ends(self):
+        sim = Sim(observe=False, price_control=True, idle_stop_min=20, min_runtime_min=30)
+        sim.price_configured = True
+        sim.now = at(3)
+        sim.sun_up = False
+        sim.price = 10.0
+        sim.hp_w = 1500
+        sim.step()
+        self.assertEqual(sim.state.run_kind, logic.RUN_CHEAP)
+        sim.run(40)
+        sim.hp_w = 40
+        sim.run(21)
+        self.assertFalse(sim.state.requested)
+        self.assertIn("stop:hp_idle", sim.events)
+
+    def test_manual_mode_unaffected(self):
+        sim = Sim(observe=False, mode=logic.MODE_MANUAL, idle_stop_min=5)
+        sim.hp_w = 1000
+        sim.run(5)
+        sim.hp_w = 40
+        sim.run(30)
+        self.assertTrue(sim.state.requested)
+
+    def test_setting_persisted(self):
+        s = logic.Settings(idle_stop_min=20)
+        self.assertEqual(logic.Settings.from_dict(s.to_dict()).idle_stop_min, 20.0)
+        self.assertEqual(logic.Settings.from_dict({}).idle_stop_min, 0.0)

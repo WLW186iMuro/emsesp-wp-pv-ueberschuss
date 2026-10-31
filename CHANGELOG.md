@@ -1,5 +1,10 @@
 # Änderungsprotokoll
 
+## 0.4.0 – 2026-10-31
+
+- **Neu: Beenden nach Kompressor-Stillstand (optional).** Ist der Kompressor im PV- oder Günstig-Betrieb gelaufen und steht danach die eingestellte Zeit still, beendet die Integration den Betrieb, und die Sperrzeit beginnt. Das verhindert einen zweiten, unnötigen Kompressorstart, wenn die Wärmepumpe das erhöhte Warmwasser-Soll im PV-Betrieb nicht ganz erreicht und es nach ihrer eigenen Pause erneut versucht. Standard 0 = aus, empfohlen z. B. 20 min (länger als die Pause der Wärmepumpe zwischen Warmwasser und Heizen). Nur mit Leistungsnachführung, weil dafür die Kompressorleistung gebraucht wird.
+- Status-Attribut `hp_idle_since`: seit wann der Kompressor im laufenden Betrieb still steht.
+
 ## 0.3.1 – 2026-10-25
 
 - Strompreis-Steuerung: Ein Neustart von Home Assistant während eines Günstig-Betriebs beendet den Lauf nicht mehr fälschlich mit „günstige Strompreis-Phase vorbei“. Ist der Preis-Sensor nach dem Start noch nicht geladen (z. B. Cloud-Sensoren wie Octopus oder Tibber), läuft der Günstig-Betrieb bis zu 15 Minuten weiter, bis wieder ein Preis da ist. Danach entscheidet der aktuelle Preis wie gewohnt (Issue #1, danke an Sven242 für die genaue Analyse).

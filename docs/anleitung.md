@@ -133,10 +133,13 @@ Fällt der Überschuss während der Einschaltverzögerung kurz unter die Schwell
 | Akku zu leer | sofort, wenn der Ladestand 2 min unter der Abschaltgrenze (50 %) liegt |
 | Sonnenuntergang | sofort |
 | Messwerte fehlen | nach 10 min ohne Netz-, Akku- oder SoC-Wert |
+| Wärmepumpe fertig (optional) | wenn der Kompressor im PV-Betrieb gelaufen ist und danach so lange still steht wie unter *Beenden nach Kompressor-Stillstand* eingestellt (Standard 0 = aus) |
 
 Zwischen −800 W und +1500 W läuft die Wärmepumpe einfach weiter. Das ist die **Hysterese**. Sie verhindert, dass eine vorbeiziehende Wolke den Kompressor ausschaltet.
 
 Nach jedem Stopp beginnt die **Sperrzeit** (120 min). Erst danach ist ein neuer Start möglich, maximal 2 pro Tag.
+
+**Beenden nach Kompressor-Stillstand (optional, nur mit Leistungsnachführung):** Solange das PV-Signal anliegt, gilt an der Wärmepumpe meist ein höheres Warmwasser-Soll. Schafft sie es mit wenig Kompressorleistung nicht ganz, bricht sie ab und startet nach ihrer eigenen Pause einen weiteren, oft nutzlosen Versuch. Mit dieser Einstellung beendet die Integration den PV-Betrieb, sobald der Kompressor gelaufen ist und danach die eingestellte Zeit still steht (unter 200 W). Danach gilt die Sperrzeit. Wähle die Zeit länger als die normale Pause deiner Wärmepumpe zwischen Warmwasser und Heizen (bei der WLW186i rund 15 min), z. B. **20 min**. Sonst endet der PV-Betrieb, bevor die Wärmepumpe mit PV-Anhebung weiterheizt.
 
 ## 6. Leistungsnachführung (pvmaxcomp)
 
@@ -258,6 +261,7 @@ show_settings: true   # Einstellungen anzeigen
 | Kein Akku | Akku-Leistung als Sensor mit dauerhaft 0 W anlegen, SoC 100 % (z. B. Template-Sensoren) |
 | Größere Wärmepumpe (9–12 kW) | *Kompressorleistung max.* erhöhen, z. B. 3,5–4 kW |
 | Wärmepumpe taktet trotzdem | *Mindestlaufzeit* und *Sperrzeit* erhöhen, *Max. Aktivierungen* auf 1 |
+| Zweiter Warmwasser-Start im PV-Betrieb | *Beenden nach Kompressor-Stillstand* auf 20 min |
 | Startet zu selten | *Einschaltschwelle* senken (z. B. 1200 W), *Startfenster* erweitern |
 | Häufig Netzbezug im PV-Betrieb | *Ausschaltschwelle* näher an 0 (z. B. −400 W), *Leistungsreserve* erhöhen |
 

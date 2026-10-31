@@ -207,6 +207,9 @@
       "comp_interval_min": {
         "name": "Anpassungsintervall"
       },
+      "idle_stop_min": {
+        "name": "Beenden nach Kompressor-Stillstand"
+      },
       "price_cheap_ct": {
         "name": "Günstig-Schwelle"
       },

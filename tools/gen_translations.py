@@ -132,6 +132,7 @@ ENTITIES = {
         "comp_reserve_kw": ("Leistungsreserve", "Power reserve"),
         "comp_step_kw": ("Mindeständerung", "Minimum change"),
         "comp_interval_min": ("Anpassungsintervall", "Adjustment interval"),
+        "idle_stop_min": ("Beenden nach Kompressor-Stillstand", "End after compressor idle"),
         "price_cheap_ct": ("Günstig-Schwelle", "Cheap threshold"),
         "price_expensive_ct": ("Teuer-Schwelle", "Expensive threshold"),
         "price_comp_kw": ("Kompressorleistung bei günstigem Strom", "Compressor power on cheap electricity"),

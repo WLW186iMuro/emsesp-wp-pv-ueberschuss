@@ -86,6 +86,7 @@ _TEXT = {
             "price_cheap": "günstiger Strom",
             "price_end": "günstige Strompreis-Phase vorbei",
             "price_high": "Strompreis zu hoch",
+            "hp_idle": "Wärmepumpe fertig, Kompressor steht",
         },
     },
     "en": {
@@ -113,6 +114,7 @@ _TEXT = {
             "price_cheap": "cheap electricity",
             "price_end": "cheap price period over",
             "price_high": "electricity price too high",
+            "hp_idle": "heat pump done, compressor idle",
         },
     },
 }
