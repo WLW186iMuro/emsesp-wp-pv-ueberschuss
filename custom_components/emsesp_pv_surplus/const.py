@@ -28,6 +28,9 @@ CONF_EVU_BIT = "evu_bit"
 CONF_BACKUP_RESERVE_ENTITY = "backup_reserve_entity"
 CONF_HOURLY_PRICE_ENTITY = "hourly_price_entity"
 CONF_AVG_PRICE_ENTITY = "avg_price_entity"
+# Input option that blocks the heater rod while throttled under §14a EnWG (e.g. hpin3opt)
+CONF_THROTTLE_ENTITY = "throttle_entity"
+CONF_THROTTLE_BIT = "throttle_bit"
 # All four are needed for the EVU block (peak mode)
 PEAK_ENTITIES = [
     CONF_EVU_ENTITY,

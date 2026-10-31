@@ -13,12 +13,13 @@ This guide explains step by step how the integration works, how to set it up and
 5. [How the integration decides](#5-how-the-integration-decides)
 6. [Compressor power control (pvmaxcomp)](#6-compressor-power-control-pvmaxcomp)
 7. [Price control (optional)](#7-price-control-optional)
-8. [The dashboard card explained](#8-the-dashboard-card-explained)
-9. [Modes](#9-modes)
-10. [Tuning the settings](#10-tuning-the-settings)
-11. [Example: a sunny day](#11-example-a-sunny-day)
-12. [Entities for your own automations](#12-entities-for-your-own-automations)
-13. [FAQ and troubleshooting](#13-faq-and-troubleshooting)
+8. [Throttling under §14a EnWG (throttle mode, optional)](#8-throttling-under-14a-enwg-throttle-mode-optional)
+9. [The dashboard card explained](#9-the-dashboard-card-explained)
+10. [Modes](#10-modes)
+11. [Tuning the settings](#11-tuning-the-settings)
+12. [Example: a sunny day](#12-example-a-sunny-day)
+13. [Entities for your own automations](#13-entities-for-your-own-automations)
+14. [FAQ and troubleshooting](#14-faq-and-troubleshooting)
 
 ---
 
@@ -231,7 +232,55 @@ During the block the status shows **Peak mode – EVU block active**, and PV mod
 
 > ⚠️ Check in EMS-ESP first which character of `hpin1opt` is the EVU block on your heat pump (usually the first on Buderus/Bosch/Junkers). An EVU contact wired by the grid operator is not affected.
 
-## 8. The dashboard card explained
+## 8. Throttling under §14a EnWG (throttle mode, optional)
+
+If you have agreed grid-oriented control under the German **§14a EnWG** with your grid operator (reduced grid fees), the operator may limit the power of your controllable devices (heat pump, air conditioner, wallbox, battery) for a while. **Throttle mode** applies this control signal to the heat pump and works out how much power the other devices may still use.
+
+**Setup:** *Integration → Configure*
+
+| Field | Example |
+|---|---|
+| EMS-ESP input option for throttling | `text.boiler_hpin3opt` |
+| Heater block bit position | `0` (first character, default) |
+| PV max. compressor power + current compressor power | as for compressor power control (section 6), so the compressor is limited too |
+
+Configure that input (e.g. input 3 of a Buderus heat pump) in the heat pump to **block the heater rod**. You then get:
+
+- switch **Throttle mode** – enables the function (also on the card),
+- switch **Throttle: control signal** – your control box or an automation turns it *on* while the grid operator throttles,
+- settings group **Throttle mode (§14a)**: control (digital/analogue), max. input power per device in kW (0 = not present) and the priority per device (1 = supplied first).
+
+**What the grid operator guarantees** (Bundesnetzagentur decision BK6-22-300):
+
+| Control | Minimum power |
+|---|---|
+| **Digital via the EMS (EEBUS)** – one common limit for all devices | `4.2 kW + (n − 1) × GZF × 4.2 kW`; with a heat pump or air conditioner above 11 kW: `max(0.4 × P_hp; 0.4 × P_ac) + (n − 1) × GZF × 4.2 kW` |
+| **Analogue, direct (relay)** – fixed limit per device | wallbox and battery 4.2 kW each; heat pump and air conditioner 4.2 kW each, above 11 kW 40 % of their power |
+
+`n` = number of devices with power > 0, simultaneity factor GZF: 2 → 0.8 · 3 → 0.75 · 4 → 0.7 · 5 → 0.65 · 6 → 0.6 · 7 → 0.55 · 8 → 0.5 · 9 and more → 0.45. Example: heat pump 9 kW, air conditioner 3 kW, wallbox 11 kW → digital `4.2 + 2 × 0.75 × 4.2 = 10.5 kW`.
+
+**Distribution (digital):**
+
+- The limit only applies to power from the grid. What the PV system is exporting and what the battery is charging or delivering comes on top as **own generation**.
+- Power is handed out by **priority**; each device gets at most its max. input power.
+- If the heat pump is not running (compressor < 100 W), its share goes to the next device. It keeps its own limit so it can start at any time; the other devices are then cut back at the next evaluation (15 s).
+
+With **analogue control** every device gets its fixed limit, without sharing and without own generation.
+
+**What happens at the heat pump:**
+
+- The selected bit of the input option is set to `1` (heater rod blocked); the other characters stay.
+- *PV max. compressor power* is set to the heat pump's share: at once when it goes down, at most every *adjustment interval* minutes when it goes up. The previous value is restored afterwards.
+- A running PV mode is ended, and none starts while throttled (not even in *Manual*).
+- While the **EVU block** (peak mode) is on, the heat pump is left unchanged; its share goes to the other devices.
+
+Throttling works in **every mode**, because it is an obligation towards the grid operator. The status then shows **Throttle mode – §14a throttling**. In **observe mode** nothing is written; the logbook shows “[Observe] would start §14a throttling …”.
+
+**For the other devices** there is one sensor each with the power they may use right now (kW): *Throttle: max. power air conditioner / wallbox / charging power battery* (and heat pump). Without throttling they show the full power. Use an automation to pass the value on to the device, e.g. to the charging current of your wallbox.
+
+> ⚠️ The integration does not replace a control box required by the grid operator and is not a certified EMS. Check the values with your grid operator and test the function in observe mode first.
+
+## 9. The dashboard card explained
 
 ![Dashboard card (German UI; shown in English when Home Assistant is set to English)](screenshots/karte.png)
 
@@ -263,7 +312,7 @@ During the block the status shows **Peak mode – EVU block active**, and PV mod
 
 **Control**
 
-- **Automatic / Off / Manual on:** see section 9.
+- **Automatic / Off / Manual on:** see section 10.
 - **Observe mode:** calculate only, write nothing.
 - **Compressor power control:** adjust pvmaxcomp yes/no.
 - **Use PV forecast:** use Solcast for battery release and switch-on.
@@ -283,7 +332,7 @@ title: Heat pump PV     # optional
 show_settings: true     # show the settings
 ```
 
-## 9. Modes
+## 10. Modes
 
 | Mode | Behaviour |
 |---|---|
@@ -291,7 +340,7 @@ show_settings: true     # show the settings
 | **Off** | hands the heat pump back to normal operation (bit = 0) and writes nothing afterwards. You can then operate the input yourself. |
 | **Manual on** | PV mode on immediately, with no conditions and no daily counter. Useful to test whether the heat pump reacts to the signal. Switch back to Automatic afterwards. |
 
-## 10. Tuning the settings
+## 11. Tuning the settings
 
 | Situation | Suggestion |
 |---|---|
@@ -304,7 +353,7 @@ show_settings: true     # show the settings
 
 All settings are entities too (number / switch / select / time). You can change them in automations, e.g. a different start window in winter.
 
-## 11. Example: a sunny day
+## 12. Example: a sunny day
 
 | Time | What happens | Status |
 |---|---|---|
@@ -318,7 +367,7 @@ All settings are entities too (number / switch / select / time). You can change 
 | 16:40 | Lock time over, but outside start window | Outside start window |
 | 18:20 | Sunset | Sun has set |
 
-## 12. Entities for your own automations
+## 13. Entities for your own automations
 
 | Entity | Content |
 |---|---|
@@ -334,12 +383,16 @@ All settings are entities too (number / switch / select / time). You can change 
 | `binary_sensor.<name>_battery_release` | battery released |
 | `select.<name>_mode` | automatic / off / manual |
 | `switch.<name>_price_control` | price control on/off (only with a price sensor) |
+| `switch.<name>_throttle_mode` | throttle mode on/off (only with the throttle input option) |
+| `switch.<name>_throttle_control_signal` | §14a control signal, set by the control box / an automation |
+| `binary_sensor.<name>_throttling_active` | throttling is on |
+| `sensor.<name>_throttle_max_power_wallbox` | allowed wallbox power in kW (also `…_air_conditioner`, `…_heat_pump`, `…_max_charging_power_battery`) |
 
 ![Device page](screenshots/geraet.png)
 
 The exact IDs depend on the device name and the Home Assistant language. You find them under *Settings → Devices & services → EMS-ESP WP PV Überschuss → device*.
 
-## 13. FAQ and troubleshooting
+## 14. FAQ and troubleshooting
 
 **The heat pump doesn't react although "HP signal: on".**
 Check in the heat pump controller that the input is set to PV / SG Ready. Test with *Manual on*.

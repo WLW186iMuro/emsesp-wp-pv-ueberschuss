@@ -26,8 +26,9 @@ def at(h: int, m: int = 0, s: int = 0, day: int = 18) -> datetime:
 class Sim:
     """Steps the controller in 15 s ticks with a scripted environment."""
 
-    def __init__(self, evu_bit: int = 0, **settings):
+    def __init__(self, evu_bit: int = 0, throttle_bit: int = 0, **settings):
         self.evu_bit = evu_bit
+        self.throttle_bit = throttle_bit
         self.settings = logic.Settings(**settings)
         self.state = logic.State()
         self.now = at(11)
@@ -47,6 +48,8 @@ class Sim:
         self.avg_price = None
         self.reserve = None
         self.evu = None
+        self.throttle_configured = False
+        self.heater = None  # input option for the heater block
         self.observe_writes = True  # emulate the controller: no EVU set in observe mode
         self.last: logic.Result | None = None
         self.events: list[str] = []
@@ -74,8 +77,11 @@ class Sim:
                 avg_price_ct=self.avg_price,
                 backup_reserve=self.reserve,
                 evu_bits=self.evu,
+                throttle_configured=self.throttle_configured,
+                throttle_bits=self.heater,
             ),
             evu_bit=self.evu_bit,
+            throttle_bit=self.throttle_bit,
         )
         if (
             res.evu_enforce
@@ -84,6 +90,20 @@ class Sim:
             and (not self.settings.observe or not res.evu_desired)
         ):
             self.evu = res.evu_bits_target
+        if (
+            res.throttle_heater_enforce
+            and res.throttle_bits_target
+            and res.throttle_bits_target != self.heater
+            and (not self.settings.observe or not res.throttle_heater_desired)
+        ):
+            self.heater = res.throttle_bits_target
+        if res.write_throttle_comp and res.throttle_comp_kw is not None and not self.settings.observe:
+            self.pvmax = res.throttle_comp_kw
+            self.events.append(f"throttle_comp:{res.throttle_comp_kw}")
+        if res.throttle_started:
+            self.events.append(f"throttle_start:{res.throttle_reason}")
+        if res.throttle_stopped:
+            self.events.append(f"throttle_stop:{res.throttle_reason}")
         # emulate the heat pump following the signal and the limit
         if res.enforce_signal and res.signal_bits_target and res.signal_bits_target != self.bits:
             self.bits = res.signal_bits_target
@@ -977,3 +997,273 @@ class TestPeak(unittest.TestCase):
         sim.step()
         self.assertIn("peak_stop:peak_disabled", sim.events)
         self.assertEqual(sim.evu, EVU_OFF, "observe mode never writes")
+
+
+HEATER_OFF = "000000000000000"
+HEATER_ON = "100000000000000"
+
+
+def throttle_sim(throttle_bit: int = 0, **settings) -> Sim:
+    """Heat pump 9 kW, wallbox 11 kW; evening without PV, battery idle, digital control."""
+    settings.setdefault("observe", False)
+    settings.setdefault("throttle_enabled", True)
+    settings.setdefault("throttle_hp_kw", 9.0)
+    settings.setdefault("throttle_wallbox_kw", 11.0)
+    sim = Sim(throttle_bit=throttle_bit, **settings)
+    sim.now = at(18)
+    sim.sun_up = False
+    sim.throttle_configured = True
+    sim.heater = HEATER_OFF
+    sim.grid_w = 3000.0
+    sim.battery_w = 0.0
+    sim.hp_w = 2500.0
+    sim.pvmax = 2.5
+    return sim
+
+
+class TestThrottleFormulas(unittest.TestCase):
+    def test_gzf(self):
+        self.assertEqual([logic.gzf(n) for n in range(2, 10)], [0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45])
+        self.assertEqual(logic.gzf(12), 0.45)
+
+    def test_ems_min(self):
+        p = lambda **kw: {k: kw.get(k, 0.0) for k in logic.THROTTLE_DEVICES}  # noqa: E731
+        self.assertEqual(logic.ems_min_kw(p()), 0.0)
+        self.assertAlmostEqual(logic.ems_min_kw(p(hp=9)), 4.2)
+        self.assertAlmostEqual(logic.ems_min_kw(p(hp=9, wallbox=11)), 4.2 + 0.8 * 4.2)  # 7.56
+        self.assertAlmostEqual(logic.ems_min_kw(p(hp=9, ac=3, wallbox=11)), 4.2 + 2 * 0.75 * 4.2)  # 10.5
+        self.assertAlmostEqual(logic.ems_min_kw(p(hp=9, ac=3, wallbox=11, battery=5)), 4.2 + 3 * 0.7 * 4.2)
+        # heat pump above 11 kW: 40 % of its power instead of 4.2 kW
+        self.assertAlmostEqual(logic.ems_min_kw(p(hp=12)), 4.8)
+        self.assertAlmostEqual(logic.ems_min_kw(p(hp=12, ac=14, wallbox=11)), 5.6 + 2 * 0.75 * 4.2)
+
+    def test_direct_limit(self):
+        self.assertEqual(logic.direct_limit_kw("hp", 9), 4.2)
+        self.assertAlmostEqual(logic.direct_limit_kw("hp", 12), 4.8)
+        self.assertEqual(logic.direct_limit_kw("ac", 3), 3)  # below 4.2 kW not limited
+        self.assertEqual(logic.direct_limit_kw("wallbox", 22), 4.2)  # 4.2 kW also above 11 kW
+        self.assertEqual(logic.direct_limit_kw("battery", 0), 0.0)
+
+    def test_priority_order(self):
+        s = logic.Settings()
+        self.assertEqual(logic.priority_order(s), ["hp", "ac", "wallbox", "battery"])
+        s.throttle_prio_wallbox = 1
+        self.assertEqual(logic.priority_order(s), ["hp", "wallbox", "ac", "battery"])
+        s.throttle_prio_hp = 4  # tie with the battery: default order decides
+        self.assertEqual(logic.priority_order(s), ["wallbox", "ac", "hp", "battery"])
+        s.throttle_prio_hp = 5
+        self.assertEqual(logic.priority_order(s), ["wallbox", "ac", "battery", "hp"])
+
+
+class TestThrottle(unittest.TestCase):
+    def test_off_without_signal(self):
+        sim = throttle_sim()
+        res = sim.step()
+        self.assertFalse(res.throttle_active)
+        self.assertNotEqual(res.status, logic.ST_THROTTLE)
+        # unrestricted: every device may use its full power
+        self.assertEqual(res.throttle_alloc_kw, {"hp": 9.0, "ac": 0.0, "wallbox": 11.0, "battery": 0.0})
+        self.assertEqual(sim.heater, HEATER_OFF)
+
+    def test_signal_throttles_heat_pump_first(self):
+        sim = throttle_sim(throttle_signal=True)
+        res = sim.step()
+        self.assertTrue(res.throttle_active)
+        self.assertEqual(res.status, logic.ST_THROTTLE)
+        self.assertAlmostEqual(res.throttle_min_kw, 7.56)
+        self.assertEqual(res.throttle_devices, 2)
+        self.assertEqual(res.throttle_alloc_kw["hp"], 7.56)
+        self.assertEqual(res.throttle_alloc_kw["wallbox"], 0.0)
+        self.assertEqual(sim.heater, HEATER_ON)  # heater rod blocked
+        self.assertEqual(sim.pvmax, 7.6)
+        self.assertIn("throttle_start:throttle", sim.events)
+
+    def test_idle_heat_pump_passes_share_on(self):
+        sim = throttle_sim(throttle_signal=True)
+        sim.hp_w = 20.0
+        res = sim.step()
+        self.assertEqual(res.throttle_alloc_kw["wallbox"], 7.56)
+        # the heat pump keeps its limit so it can start
+        self.assertEqual(res.throttle_alloc_kw["hp"], 7.56)
+        sim.hp_w = 2500.0
+        res = sim.step()
+        self.assertEqual(res.throttle_alloc_kw["wallbox"], 0.0)
+
+    def test_priority_wallbox_first(self):
+        sim = throttle_sim(throttle_signal=True, throttle_prio_wallbox=1, throttle_prio_hp=2)
+        res = sim.step()
+        self.assertEqual(res.throttle_alloc_kw["wallbox"], 7.56)
+        self.assertEqual(res.throttle_alloc_kw["hp"], 0.0)
+        self.assertEqual(sim.pvmax, 0.0)
+
+    def test_own_power_on_top(self):
+        sim = throttle_sim(throttle_signal=True)
+        sim.grid_w = -2000.0  # exporting 2 kW
+        sim.battery_w = 1000.0  # battery delivering 1 kW
+        res = sim.step()
+        self.assertEqual(res.throttle_bonus_kw, 3.0)
+        self.assertAlmostEqual(res.throttle_budget_kw, 10.56)
+        self.assertEqual(res.throttle_alloc_kw["hp"], 9.0)
+        self.assertAlmostEqual(res.throttle_alloc_kw["wallbox"], 1.56)
+
+    def test_no_own_power_without_readings(self):
+        sim = throttle_sim(throttle_signal=True)
+        sim.grid_w = None
+        res = sim.step()
+        self.assertEqual(res.throttle_bonus_kw, 0.0)
+        self.assertAlmostEqual(res.throttle_budget_kw, 7.56)
+
+    def test_analog_fixed_limits(self):
+        sim = throttle_sim(throttle_signal=True, throttle_control=logic.THROTTLE_ANALOG, throttle_ac_kw=3.0)
+        sim.grid_w = -5000.0  # own power does not count under direct control
+        sim.hp_w = 20.0  # and nothing is passed on
+        res = sim.step()
+        self.assertEqual(res.throttle_alloc_kw, {"hp": 4.2, "ac": 3.0, "wallbox": 4.2, "battery": 0.0})
+        self.assertAlmostEqual(res.throttle_min_kw, 11.4)
+        self.assertIsNone(res.throttle_bonus_kw)
+        self.assertEqual(sim.pvmax, 4.2)
+
+    def test_end_restores_heat_pump(self):
+        sim = throttle_sim(throttle_signal=True)
+        sim.step()
+        self.assertEqual(sim.pvmax, 7.6)
+        sim.settings.throttle_signal = False
+        res = sim.step()
+        self.assertFalse(res.throttle_active)
+        self.assertIn("throttle_stop:throttle_end", sim.events)
+        self.assertEqual(sim.pvmax, 2.5)  # value from before
+        self.assertEqual(sim.heater, HEATER_OFF)
+        sim.step()
+        self.assertFalse(sim.state.throttle_written)
+        self.assertIsNone(sim.state.throttle_comp_restore)
+
+    def test_switch_off_ends_throttling(self):
+        sim = throttle_sim(throttle_signal=True)
+        sim.step()
+        sim.settings.throttle_enabled = False
+        res = sim.step()
+        self.assertIn("throttle_stop:throttle_disabled", sim.events)
+        self.assertEqual(sim.heater, HEATER_OFF)
+
+    def test_disabled_ignores_signal(self):
+        sim = throttle_sim(throttle_signal=True, throttle_enabled=False)
+        res = sim.step()
+        self.assertFalse(res.throttle_active)
+        self.assertEqual(sim.heater, HEATER_OFF)
+
+    def test_not_configured(self):
+        sim = throttle_sim(throttle_signal=True)
+        sim.throttle_configured = False
+        res = sim.step()
+        self.assertFalse(res.throttle_active)
+
+    def test_ends_pv_mode(self):
+        sim = throttle_sim()
+        sim.now = at(12)
+        sim.sun_up = True
+        sim.state.requested = True
+        sim.state.requested_since = sim.now
+        sim.bits = BITS_ON
+        sim.step()
+        sim.settings.throttle_signal = True
+        res = sim.step()
+        self.assertFalse(sim.state.requested)
+        self.assertIn("stop:throttle", sim.events)
+        self.assertEqual(sim.bits, BITS_OFF)
+        # no restart while throttled, even with surplus
+        sim.grid_w = -4000.0
+        res = sim.run(30)
+        self.assertFalse(sim.state.requested)
+        self.assertEqual(res.status, logic.ST_THROTTLE)
+
+    def test_manual_mode_paused(self):
+        sim = throttle_sim(mode=logic.MODE_MANUAL)
+        sim.step()
+        self.assertTrue(sim.state.requested)
+        sim.settings.throttle_signal = True
+        sim.step()
+        self.assertFalse(sim.state.requested)
+        sim.run(2)
+        self.assertFalse(sim.state.requested)
+        sim.settings.throttle_signal = False
+        sim.step()
+        self.assertTrue(sim.state.requested)
+
+    def test_works_in_mode_off(self):
+        sim = throttle_sim(mode=logic.MODE_OFF, throttle_signal=True)
+        res = sim.step()
+        self.assertTrue(res.throttle_active)
+        self.assertEqual(res.status, logic.ST_THROTTLE)
+        self.assertEqual(sim.heater, HEATER_ON)
+
+    def test_evu_block_leaves_heat_pump_alone(self):
+        sim = peak_sim()
+        sim.throttle_configured = True
+        sim.heater = HEATER_OFF
+        sim.settings.throttle_enabled = True
+        sim.settings.throttle_wallbox_kw = 11.0
+        sim.pvmax = 2.5
+        sim.run(10.5)
+        self.assertTrue(sim.state.peak_active)
+        sim.settings.throttle_signal = True
+        res = sim.step()
+        self.assertTrue(res.throttle_active)
+        self.assertEqual(res.status, logic.ST_PEAK)
+        self.assertEqual(sim.heater, HEATER_OFF)  # nothing written at the heat pump
+        self.assertEqual(sim.pvmax, 2.5)
+        self.assertEqual(res.throttle_alloc_kw["hp"], 0.0)
+        self.assertAlmostEqual(res.throttle_alloc_kw["wallbox"], 7.56)  # share goes to the wallbox
+
+    def test_observe_writes_nothing(self):
+        sim = throttle_sim(observe=True, throttle_signal=True)
+        res = sim.step()
+        self.assertTrue(res.throttle_started)
+        self.assertTrue(res.write_throttle_comp)
+        self.assertEqual(sim.heater, HEATER_OFF)
+        self.assertEqual(sim.pvmax, 2.5)
+        self.assertFalse(sim.state.throttle_written)
+        sim.settings.throttle_signal = False
+        res = sim.step()
+        self.assertTrue(res.throttle_stopped)
+        self.assertFalse(res.write_throttle_comp)  # nothing to restore
+
+    def test_lower_at_once_raise_after_interval(self):
+        sim = throttle_sim(throttle_signal=True, comp_interval_min=5)
+        sim.grid_w = -3000.0
+        sim.step()
+        self.assertEqual(sim.pvmax, 9.0)
+        sim.grid_w = 3000.0  # own power gone: lower at once
+        sim.step()
+        self.assertEqual(sim.pvmax, 7.6)
+        sim.grid_w = -3000.0  # back: raise only after the interval
+        sim.run(4)
+        self.assertEqual(sim.pvmax, 7.6)
+        sim.run(1.25)
+        self.assertEqual(sim.pvmax, 9.0)
+
+    def test_heater_bit_position(self):
+        sim = throttle_sim(throttle_bit=2, throttle_signal=True)
+        sim.step()
+        self.assertEqual(sim.heater, "001000000000000")
+        sim.heater = "011000000000000"  # other bits stay as they are
+        sim.settings.throttle_signal = False
+        sim.step()
+        self.assertEqual(sim.heater, "010000000000000")
+
+    def test_reset_only_own_bit(self):
+        sim = throttle_sim()
+        sim.heater = HEATER_ON  # set by somebody else
+        sim.step()
+        self.assertEqual(sim.heater, HEATER_ON)
+
+    def test_persistence(self):
+        sim = throttle_sim(throttle_signal=True)
+        sim.step()
+        state = logic.State.from_dict(sim.state.to_dict())
+        self.assertTrue(state.throttle_active)
+        self.assertTrue(state.throttle_written)
+        self.assertEqual(state.throttle_comp_restore, 2.5)
+        self.assertEqual(state.throttle_since, sim.state.throttle_since)
+        settings = logic.Settings.from_dict({**sim.settings.to_dict(), "throttle_control": "bogus"})
+        self.assertEqual(settings.throttle_control, logic.THROTTLE_DIGITAL)
+        self.assertTrue(settings.throttle_signal)

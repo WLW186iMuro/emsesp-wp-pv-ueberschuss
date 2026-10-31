@@ -16,7 +16,8 @@
           "off": "mdi:power-off",
           "price_cheap": "mdi:cash-clock",
           "price_high": "mdi:cash-remove",
-          "peak_block": "mdi:transmission-tower-off"
+          "peak_block": "mdi:transmission-tower-off",
+          "throttled": "mdi:transmission-tower-import"
         }
       },
       "available_power": {
@@ -39,6 +40,24 @@
       },
       "peak_activations_today": {
         "default": "mdi:counter"
+      },
+      "throttle_min_power": {
+        "default": "mdi:transmission-tower"
+      },
+      "throttle_budget": {
+        "default": "mdi:scale-balance"
+      },
+      "throttle_hp_power": {
+        "default": "mdi:heat-pump"
+      },
+      "throttle_ac_power": {
+        "default": "mdi:air-conditioner"
+      },
+      "throttle_wallbox_power": {
+        "default": "mdi:ev-station"
+      },
+      "throttle_battery_power": {
+        "default": "mdi:home-battery"
       }
     },
     "binary_sensor": {
@@ -64,6 +83,18 @@
         "default": "mdi:transmission-tower-off",
         "state": {
           "off": "mdi:transmission-tower"
+        }
+      },
+      "throttle_active": {
+        "default": "mdi:speedometer-slow",
+        "state": {
+          "off": "mdi:speedometer"
+        }
+      },
+      "heater_block_active": {
+        "default": "mdi:radiator-off",
+        "state": {
+          "off": "mdi:radiator"
         }
       }
     },
@@ -145,6 +176,30 @@
       },
       "peak_max_per_day": {
         "default": "mdi:counter"
+      },
+      "throttle_hp_kw": {
+        "default": "mdi:heat-pump"
+      },
+      "throttle_ac_kw": {
+        "default": "mdi:air-conditioner"
+      },
+      "throttle_wallbox_kw": {
+        "default": "mdi:ev-station"
+      },
+      "throttle_battery_kw": {
+        "default": "mdi:home-battery"
+      },
+      "throttle_prio_hp": {
+        "default": "mdi:sort-numeric-ascending"
+      },
+      "throttle_prio_ac": {
+        "default": "mdi:sort-numeric-ascending"
+      },
+      "throttle_prio_wallbox": {
+        "default": "mdi:sort-numeric-ascending"
+      },
+      "throttle_prio_battery": {
+        "default": "mdi:sort-numeric-ascending"
       }
     },
     "switch": {
@@ -165,11 +220,23 @@
       },
       "price_stop_expensive": {
         "default": "mdi:cash-remove"
+      },
+      "throttle_enabled": {
+        "default": "mdi:speedometer-slow"
+      },
+      "throttle_signal": {
+        "default": "mdi:transmission-tower-import",
+        "state": {
+          "off": "mdi:transmission-tower"
+        }
       }
     },
     "select": {
       "mode": {
         "default": "mdi:auto-mode"
+      },
+      "throttle_control": {
+        "default": "mdi:swap-horizontal"
       }
     },
     "time": {

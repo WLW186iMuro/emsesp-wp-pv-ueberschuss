@@ -23,7 +23,9 @@
           "evu_bit": "EVU block bit position",
           "backup_reserve_entity": "Battery backup reserve in % (optional, for peak mode)",
           "hourly_price_entity": "Current hourly price (optional, for peak mode)",
-          "avg_price_entity": "Average price today (optional, for peak mode)"
+          "avg_price_entity": "Average price today (optional, for peak mode)",
+          "throttle_entity": "EMS-ESP input option for throttling under §14a (optional, e.g. hpin3opt)",
+          "throttle_bit": "Heater block bit position"
         },
         "data_description": {
           "name": "Display name of the device.",
@@ -40,7 +42,9 @@
           "evu_bit": "0 = first character. Usually 0 for the EVU block on Buderus/Bosch/Junkers.",
           "backup_reserve_entity": "Reserve the battery does not go below. The EVU block is possible once the state of charge is at most reserve + margin.",
           "hourly_price_entity": "€/kWh or ct/kWh, e.g. Tibber “Hourly price current”.",
-          "avg_price_entity": "€/kWh or ct/kWh, e.g. Tibber “Average price today”."
+          "avg_price_entity": "€/kWh or ct/kWh, e.g. Tibber “Average price today”.",
+          "throttle_entity": "Throttle mode: text entity of the input that blocks the heater rod at the heat pump. The selected bit is set to 1 while throttled; the other characters stay unchanged. The power is also limited via the PV max. compressor power.",
+          "throttle_bit": "0 = first character."
         }
       }
     },
@@ -75,7 +79,9 @@
           "evu_bit": "EVU block bit position",
           "backup_reserve_entity": "Battery backup reserve in % (optional, for peak mode)",
           "hourly_price_entity": "Current hourly price (optional, for peak mode)",
-          "avg_price_entity": "Average price today (optional, for peak mode)"
+          "avg_price_entity": "Average price today (optional, for peak mode)",
+          "throttle_entity": "EMS-ESP input option for throttling under §14a (optional, e.g. hpin3opt)",
+          "throttle_bit": "Heater block bit position"
         },
         "data_description": {
           "signal_entity": "Text entity holding the bit pattern of the SG/PV input. The selected bit is set to 1 for PV mode (as in the evcc template: 1xxxxxxxxxxx = boost).",
@@ -91,7 +97,9 @@
           "evu_bit": "0 = first character. Usually 0 for the EVU block on Buderus/Bosch/Junkers.",
           "backup_reserve_entity": "Reserve the battery does not go below. The EVU block is possible once the state of charge is at most reserve + margin.",
           "hourly_price_entity": "€/kWh or ct/kWh, e.g. Tibber “Hourly price current”.",
-          "avg_price_entity": "€/kWh or ct/kWh, e.g. Tibber “Average price today”."
+          "avg_price_entity": "€/kWh or ct/kWh, e.g. Tibber “Average price today”.",
+          "throttle_entity": "Throttle mode: text entity of the input that blocks the heater rod at the heat pump. The selected bit is set to 1 while throttled; the other characters stay unchanged. The power is also limited via the PV max. compressor power.",
+          "throttle_bit": "0 = first character."
         }
       }
     },
@@ -142,7 +150,8 @@
           "sensor_error": "Readings missing",
           "price_cheap": "Cheap electricity – PV mode",
           "price_high": "Electricity price too high",
-          "peak_block": "Peak mode – EVU block active"
+          "peak_block": "Peak mode – EVU block active",
+          "throttled": "Throttle mode – §14a throttling"
         }
       },
       "available_power": {
@@ -165,6 +174,24 @@
       },
       "peak_activations_today": {
         "name": "EVU blocks today"
+      },
+      "throttle_min_power": {
+        "name": "Throttle: minimum power under §14a"
+      },
+      "throttle_budget": {
+        "name": "Throttle: total power (incl. PV/battery)"
+      },
+      "throttle_hp_power": {
+        "name": "Throttle: max. power heat pump"
+      },
+      "throttle_ac_power": {
+        "name": "Throttle: max. power air conditioner"
+      },
+      "throttle_wallbox_power": {
+        "name": "Throttle: max. power wallbox"
+      },
+      "throttle_battery_power": {
+        "name": "Throttle: max. charging power battery"
       }
     },
     "binary_sensor": {
@@ -185,6 +212,12 @@
       },
       "evu_signal_active": {
         "name": "EVU signal at heat pump"
+      },
+      "throttle_active": {
+        "name": "Throttling active"
+      },
+      "heater_block_active": {
+        "name": "Heater block at heat pump"
       }
     },
     "number": {
@@ -265,6 +298,30 @@
       },
       "peak_max_per_day": {
         "name": "Peak: max. activations per day"
+      },
+      "throttle_hp_kw": {
+        "name": "Throttle: max. input power heat pump (incl. heater rod)"
+      },
+      "throttle_ac_kw": {
+        "name": "Throttle: max. input power air conditioner"
+      },
+      "throttle_wallbox_kw": {
+        "name": "Throttle: max. input power wallbox"
+      },
+      "throttle_battery_kw": {
+        "name": "Throttle: max. grid charging power battery"
+      },
+      "throttle_prio_hp": {
+        "name": "Throttle: priority heat pump"
+      },
+      "throttle_prio_ac": {
+        "name": "Throttle: priority air conditioner"
+      },
+      "throttle_prio_wallbox": {
+        "name": "Throttle: priority wallbox"
+      },
+      "throttle_prio_battery": {
+        "name": "Throttle: priority battery"
       }
     },
     "switch": {
@@ -282,6 +339,12 @@
       },
       "price_stop_expensive": {
         "name": "Stop PV mode on expensive electricity"
+      },
+      "throttle_enabled": {
+        "name": "Throttle mode"
+      },
+      "throttle_signal": {
+        "name": "Throttle: control signal"
       }
     },
     "select": {
@@ -291,6 +354,13 @@
           "auto": "Automatic",
           "off": "Off",
           "manual": "Manual: PV mode on"
+        }
+      },
+      "throttle_control": {
+        "name": "Throttle: control",
+        "state": {
+          "digital": "Digital (EMS/EEBUS)",
+          "analog": "Analogue (relay)"
         }
       }
     },

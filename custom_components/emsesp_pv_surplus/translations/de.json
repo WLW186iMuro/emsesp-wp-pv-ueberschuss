@@ -23,7 +23,9 @@
           "evu_bit": "Bit-Position der EVU-Sperre",
           "backup_reserve_entity": "Akku-Notstromreserve in % (optional, für den Peak-Modus)",
           "hourly_price_entity": "Aktueller Stundenpreis (optional, für den Peak-Modus)",
-          "avg_price_entity": "Durchschnittspreis heute (optional, für den Peak-Modus)"
+          "avg_price_entity": "Durchschnittspreis heute (optional, für den Peak-Modus)",
+          "throttle_entity": "EMS-ESP Eingangs-Option für die Drosselung nach §14a (optional, z. B. hpin3opt)",
+          "throttle_bit": "Bit-Position der Heizstab-Sperre"
         },
         "data_description": {
           "name": "Anzeigename des Geräts.",
@@ -40,7 +42,9 @@
           "evu_bit": "0 = erstes Zeichen. Bei Buderus/Bosch/Junkers für die EVU-Sperre meist 0.",
           "backup_reserve_entity": "Reserve, die der Akku nicht unterschreitet. Die EVU-Sperre ist möglich, sobald der Ladestand höchstens Reserve + Abstand beträgt.",
           "hourly_price_entity": "€/kWh oder ct/kWh, z. B. Tibber „Hourly price current“.",
-          "avg_price_entity": "€/kWh oder ct/kWh, z. B. Tibber „Average price today“."
+          "avg_price_entity": "€/kWh oder ct/kWh, z. B. Tibber „Average price today“.",
+          "throttle_entity": "Throttle Mode: Text-Entität des Eingangs, der an der Wärmepumpe den Heizstab sperrt. Das gewählte Bit wird während der Drosselung auf 1 gesetzt, die übrigen Zeichen bleiben unverändert. Die Leistung wird zusätzlich über die PV max. Kompressorleistung begrenzt.",
+          "throttle_bit": "0 = erstes Zeichen."
         }
       }
     },
@@ -75,7 +79,9 @@
           "evu_bit": "Bit-Position der EVU-Sperre",
           "backup_reserve_entity": "Akku-Notstromreserve in % (optional, für den Peak-Modus)",
           "hourly_price_entity": "Aktueller Stundenpreis (optional, für den Peak-Modus)",
-          "avg_price_entity": "Durchschnittspreis heute (optional, für den Peak-Modus)"
+          "avg_price_entity": "Durchschnittspreis heute (optional, für den Peak-Modus)",
+          "throttle_entity": "EMS-ESP Eingangs-Option für die Drosselung nach §14a (optional, z. B. hpin3opt)",
+          "throttle_bit": "Bit-Position der Heizstab-Sperre"
         },
         "data_description": {
           "signal_entity": "Text-Entität mit dem Bitmuster des SG-/PV-Eingangs. Das gewählte Bit wird für den PV-Betrieb auf 1 gesetzt (wie im evcc-Template: 1xxxxxxxxxxx = Boost).",
@@ -91,7 +97,9 @@
           "evu_bit": "0 = erstes Zeichen. Bei Buderus/Bosch/Junkers für die EVU-Sperre meist 0.",
           "backup_reserve_entity": "Reserve, die der Akku nicht unterschreitet. Die EVU-Sperre ist möglich, sobald der Ladestand höchstens Reserve + Abstand beträgt.",
           "hourly_price_entity": "€/kWh oder ct/kWh, z. B. Tibber „Hourly price current“.",
-          "avg_price_entity": "€/kWh oder ct/kWh, z. B. Tibber „Average price today“."
+          "avg_price_entity": "€/kWh oder ct/kWh, z. B. Tibber „Average price today“.",
+          "throttle_entity": "Throttle Mode: Text-Entität des Eingangs, der an der Wärmepumpe den Heizstab sperrt. Das gewählte Bit wird während der Drosselung auf 1 gesetzt, die übrigen Zeichen bleiben unverändert. Die Leistung wird zusätzlich über die PV max. Kompressorleistung begrenzt.",
+          "throttle_bit": "0 = erstes Zeichen."
         }
       }
     },
@@ -142,7 +150,8 @@
           "sensor_error": "Messwerte fehlen",
           "price_cheap": "Günstiger Strom – PV-Betrieb",
           "price_high": "Strompreis zu hoch",
-          "peak_block": "Peak-Modus – EVU-Sperre aktiv"
+          "peak_block": "Peak-Modus – EVU-Sperre aktiv",
+          "throttled": "Throttle Mode – Drosselung nach §14a"
         }
       },
       "available_power": {
@@ -165,6 +174,24 @@
       },
       "peak_activations_today": {
         "name": "EVU-Sperren heute"
+      },
+      "throttle_min_power": {
+        "name": "Drosselung: Mindestleistung nach §14a"
+      },
+      "throttle_budget": {
+        "name": "Drosselung: Leistung gesamt (inkl. PV/Akku)"
+      },
+      "throttle_hp_power": {
+        "name": "Drosselung: Max. Leistung Wärmepumpe"
+      },
+      "throttle_ac_power": {
+        "name": "Drosselung: Max. Leistung Klimagerät"
+      },
+      "throttle_wallbox_power": {
+        "name": "Drosselung: Max. Leistung Wallbox"
+      },
+      "throttle_battery_power": {
+        "name": "Drosselung: Max. Ladeleistung Speicher"
       }
     },
     "binary_sensor": {
@@ -185,6 +212,12 @@
       },
       "evu_signal_active": {
         "name": "EVU-Signal an Wärmepumpe"
+      },
+      "throttle_active": {
+        "name": "Drosselung aktiv"
+      },
+      "heater_block_active": {
+        "name": "Heizstab-Sperre an Wärmepumpe"
       }
     },
     "number": {
@@ -265,6 +298,30 @@
       },
       "peak_max_per_day": {
         "name": "Peak: Max. Aktivierungen pro Tag"
+      },
+      "throttle_hp_kw": {
+        "name": "Drosselung: Max. Eingangsleistung Wärmepumpe (inkl. Heizstab)"
+      },
+      "throttle_ac_kw": {
+        "name": "Drosselung: Max. Eingangsleistung Klimagerät"
+      },
+      "throttle_wallbox_kw": {
+        "name": "Drosselung: Max. Eingangsleistung Wallbox"
+      },
+      "throttle_battery_kw": {
+        "name": "Drosselung: Max. Netz-Ladeleistung Speicher"
+      },
+      "throttle_prio_hp": {
+        "name": "Drosselung: Priorität Wärmepumpe"
+      },
+      "throttle_prio_ac": {
+        "name": "Drosselung: Priorität Klimagerät"
+      },
+      "throttle_prio_wallbox": {
+        "name": "Drosselung: Priorität Wallbox"
+      },
+      "throttle_prio_battery": {
+        "name": "Drosselung: Priorität Speicher"
       }
     },
     "switch": {
@@ -282,6 +339,12 @@
       },
       "price_stop_expensive": {
         "name": "Bei teurem Strom PV-Betrieb beenden"
+      },
+      "throttle_enabled": {
+        "name": "Throttle Mode"
+      },
+      "throttle_signal": {
+        "name": "Drosselung: Steuersignal"
       }
     },
     "select": {
@@ -291,6 +354,13 @@
           "auto": "Automatik",
           "off": "Aus",
           "manual": "Manuell: PV-Betrieb an"
+        }
+      },
+      "throttle_control": {
+        "name": "Drosselung: Steuerung",
+        "state": {
+          "digital": "Digital (EMS/EEBUS)",
+          "analog": "Analog (Relais)"
         }
       }
     },

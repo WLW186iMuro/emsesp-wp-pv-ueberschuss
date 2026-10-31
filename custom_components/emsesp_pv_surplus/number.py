@@ -21,7 +21,7 @@ class Spec:
     maximum: float
     step: float
     unit: str | None
-    group: str  # base | forecast | compressor | price | price_any | price_comp | peak
+    group: str  # base | forecast | compressor | price | price_any | price_comp | peak | throttle
 
 
 SPECS: list[Spec] = [
@@ -51,6 +51,14 @@ SPECS: list[Spec] = [
     Spec("peak_max_duration_min", 10, 480, 5, UnitOfTime.MINUTES, "peak"),
     Spec("peak_lock_min", 0, 720, 5, UnitOfTime.MINUTES, "peak"),
     Spec("peak_max_per_day", 1, 10, 1, None, "peak"),
+    Spec("throttle_hp_kw", 0, 30, 0.1, UnitOfPower.KILO_WATT, "throttle"),
+    Spec("throttle_ac_kw", 0, 30, 0.1, UnitOfPower.KILO_WATT, "throttle"),
+    Spec("throttle_wallbox_kw", 0, 22, 0.1, UnitOfPower.KILO_WATT, "throttle"),
+    Spec("throttle_battery_kw", 0, 30, 0.1, UnitOfPower.KILO_WATT, "throttle"),
+    Spec("throttle_prio_hp", 1, 4, 1, None, "throttle"),
+    Spec("throttle_prio_ac", 1, 4, 1, None, "throttle"),
+    Spec("throttle_prio_wallbox", 1, 4, 1, None, "throttle"),
+    Spec("throttle_prio_battery", 1, 4, 1, None, "throttle"),
 ]
 PRICE_GROUPS = {"price", "price_any", "price_comp", "peak"}
 
@@ -69,6 +77,8 @@ def groups(c) -> set[str]:
         out.add("price_any")
     if c.has_peak:
         out.add("peak")
+    if c.has_throttle:
+        out.add("throttle")
     return out
 
 

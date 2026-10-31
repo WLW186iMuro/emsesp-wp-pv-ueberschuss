@@ -1,4 +1,4 @@
-"""Switches: observe mode, compressor control, forecast use."""
+"""Switches: observe mode, compressor control, forecast use, throttle mode."""
 
 from __future__ import annotations
 
@@ -22,6 +22,8 @@ def keys(c) -> list[str]:
         out.append("price_control")
     if c.has_price:
         out.append("price_stop_expensive")
+    if c.has_throttle:
+        out += ["throttle_enabled", "throttle_signal"]
     return out
 
 
@@ -32,6 +34,12 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddC
 
 class SettingSwitch(PvSurplusEntity, SwitchEntity):
     _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, controller, key: str) -> None:
+        super().__init__(controller, key)
+        if key in ("throttle_enabled", "throttle_signal"):
+            # Throttle mode and the control signal (set by the control box) are operated, not configured
+            self._attr_entity_category = None
 
     @property
     def available(self) -> bool:

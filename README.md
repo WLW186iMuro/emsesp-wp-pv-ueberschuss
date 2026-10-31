@@ -34,6 +34,7 @@ Du brauchst kein YAML, keine Helfer und keine Automationen: installieren, Entit�
 - **Leistungsnachführung (optional):** passt im PV-Betrieb `PV max. Kompressorleistung` (`pvmaxcomp`) an das gemittelte Budget an (aktuelle Kompressorleistung + verbleibender Überschuss). Die Grenze bleibt in einem Min/Max-Bereich und ändert sich nur alle *n* Minuten, nicht im Sekundentakt.
 - **Strompreis-Steuerung (optional):** für dynamische oder zeitvariable Tarife (Tibber, aWATTar, Octopus …). Bei günstigem Strom PV-Betrieb auch ohne Überschuss, bei teurem Strom kein Start. Ohne Preis-Sensor unsichtbar; mit Preis-Sensor erst nach Einschalten der *Preissteuerung* einstellbar. [Details](docs/anleitung.md#7-strompreis-steuerung-optional)
 - **Peak-Modus (optional):** setzt bei hohem Stundenpreis und leerem Akku die EVU-Sperre der Wärmepumpe (ein wählbares Bit von z. B. `text.boiler_hpin1opt`, Standard: erstes Zeichen) und hebt sie wieder auf, sobald der Preis sinkt – spätestens nach der maximalen Sperrdauer. [Details](docs/anleitung.md#71-peak-modus-evu-sperre-bei-hohem-preis-und-leerem-akku)
+- **Throttle Mode – Drosselung nach §14a EnWG (optional):** Bei einem Steuersignal des Netzbetreibers wird an der Wärmepumpe der Heizstab gesperrt (wählbares Bit von z. B. `text.boiler_hpin3opt`) und `pvmaxcomp` begrenzt. Die Integration berechnet die Mindestleistung nach §14a (digital über das EMS oder analog per Relais), verteilt sie nach Priorität auf Wärmepumpe, Klimagerät, Wallbox und Speicher, rechnet eigenen PV-/Akkustrom dazu und stellt die erlaubte Leistung je Gerät als Sensor bereit. [Details](docs/anleitung.md#8-drosselung-nach-14a-enwg-throttle-mode-optional)
 - **Beobachtungsmodus:** rechnet und schreibt Logbuch-Einträge („würde starten …“), schreibt aber nichts an die Wärmepumpe. **Neue Einrichtungen starten in diesem Modus.**
 - **Betriebsarten:** Automatik, Aus (gibt die Wärmepumpe in den Normalbetrieb zurück), Manuell (PV-Betrieb an).
 - **Dashboard-Karte:** Status, Live-Werte, Checkliste der Startbedingungen, Betriebsart und alle Einstellungen. Die Integration lädt die Karte selbst, ein Ressourcen-Eintrag ist nicht nötig.
@@ -108,6 +109,8 @@ Alle Bilder stammen aus einer laufenden Installation (Buderus WLW186i, GoodWe GW
 | Akku-Notstromreserve | Reserve in % | Pflicht beim Peak-Modus |
 | Aktueller Stundenpreis | Tibber „Hourly price current“ | Pflicht beim Peak-Modus |
 | Durchschnittspreis heute | Tibber „Average price today“ | Pflicht beim Peak-Modus |
+| Eingangs-Option für die Drosselung | `text.boiler_hpin3opt` | optional, Throttle Mode (§14a); Eingang muss den Heizstab sperren |
+| Bit-Position der Heizstab-Sperre | `0` | 0 = erstes Zeichen |
 
 Später änderbar über **Integration → Konfigurieren**. Wenn das Verhalten im Beobachtungsmodus passt, schalte auf der Karte den **Beobachtungsmodus** aus.
 
@@ -149,6 +152,9 @@ Alle Einstellungen sind Entitäten (number / switch / select / time). Du kannst 
 | Peak: Netzbezug seit mindestens | 10 min | verfügbare Leistung ≤ 0 W am Stück |
 | Peak: Max. Dauer der EVU-Sperre | 120 min | danach immer aufheben, egal wie der Preis ist |
 | Peak: Sperrzeit / Max. Aktivierungen pro Tag | 60 min / 2 | Pause nach der letzten EVU-Sperre |
+| Drosselung: Steuerung | Digital (EMS/EEBUS) | digital: gemeinsame Grenze nach §14a, PV/Akku zusätzlich; analog: 4,2 kW je Gerät |
+| Drosselung: Max. Eingangsleistung WP / Klima / Wallbox / Speicher | 9 / 0 / 0 / 0 kW | 0 = Gerät nicht vorhanden; Speicher = Ladeleistung aus dem Netz |
+| Drosselung: Priorität WP / Klima / Wallbox / Speicher | 1 / 2 / 3 / 4 | 1 = zuerst versorgt |
 
 Passe die Standardwerte an deine Anlage an: die Akku-Kapazität und den Kompressorbereich für deine Wärmepumpe (die Standardwerte passen zu einem 7-kW-Gerät wie der WLW186i-7).
 
@@ -166,7 +172,8 @@ Ziel      = begrenzt(Budget − Reserve, min, max) bei Akku-Freigabe, sonst min
 ## Entitäten
 
 - **Sensoren:** Status (mit vielen Attributen), verfügbare Leistung, Leistungsbudget, Kompressor-Zielleistung, Aktivierungen heute, PV-Laufzeit heute, Sperrzeit bis
-- **Binärsensoren:** PV-Betrieb angefordert, PV-Signal an Wärmepumpe, Akku-Freigabe, Überschuss über Einschaltschwelle; mit Peak-Modus: EVU-Sperre angefordert, EVU-Signal an Wärmepumpe
+- **Binärsensoren:** PV-Betrieb angefordert, PV-Signal an Wärmepumpe, Akku-Freigabe, Überschuss über Einschaltschwelle; mit Peak-Modus: EVU-Sperre angefordert, EVU-Signal an Wärmepumpe; mit Throttle Mode: Drosselung aktiv, Heizstab-Sperre an Wärmepumpe
+- **Throttle Mode:** Schalter *Throttle Mode* und *Drosselung: Steuersignal*, Auswahl *Drosselung: Steuerung*, Sensoren Mindestleistung, Leistung gesamt und max. Leistung je Gerät (kW)
 - **Tasten:** Sperrzeit aufheben, Tageszähler zurücksetzen (mit Peak-Modus auch für die EVU-Sperre)
 
 ## Entfernen
@@ -240,6 +247,7 @@ No YAML, no helpers, no automations: you install it, pick your entities, and put
 - **Compressor power control (optional):** in PV mode it adjusts `PV max. compressor power` (`pvmaxcomp`) to the averaged budget (current compressor power + remaining surplus). The limit stays inside a min/max range and changes only every *n* minutes, never second by second.
 - **Price control (optional):** for dynamic or time-of-use tariffs (Tibber, aWATTar, Octopus …). PV mode even without surplus when electricity is cheap, no start when it is expensive. Invisible without a price sensor; with one, adjustable only after turning on *Price control*. [Details](docs/guide.md#7-price-control-optional)
 - **Peak mode (optional):** sets the heat pump's EVU block (a selectable bit of e.g. `text.boiler_hpin1opt`, default: first character) when the hourly price is high and the battery is empty, and lifts it as soon as the price drops, at the latest after the maximum block duration. [Details](docs/guide.md#71-peak-mode-evu-block-on-high-price-and-empty-battery)
+- **Throttle mode – throttling under §14a EnWG (optional):** on a control signal from the grid operator the heater rod of the heat pump is blocked (selectable bit of e.g. `text.boiler_hpin3opt`) and `pvmaxcomp` is limited. The integration works out the minimum power under §14a (digital via the EMS or analogue via relay), shares it by priority between heat pump, air conditioner, wallbox and battery, adds own PV/battery power and provides the allowed power per device as a sensor. [Details](docs/guide.md#8-throttling-under-14a-enwg-throttle-mode-optional)
 - **Observe mode:** it calculates and writes logbook entries ("would start …") but does not write anything to the heat pump. **New installations start in observe mode**, so you can compare it with your current setup first.
 - **Modes:** automatic, off (hands the heat pump back to normal operation), manual (PV mode on).
 - **Dashboard card:** status, live values, a start-condition checklist, the mode buttons and all settings in one card. The integration loads it automatically, so no resource entry is needed.
@@ -287,6 +295,8 @@ No YAML, no helpers, no automations: you install it, pick your entities, and put
 | PV forecast power in 30 min | Solcast, W | optional |
 | Electricity price sensor | e.g. Tibber `EUR/kWh` | optional, only with a dynamic / time-of-use tariff |
 | Unit of the price sensor | Automatic | only change it if the sensor has no unit |
+| Input option for throttling | `text.boiler_hpin3opt` | optional, throttle mode (§14a); the input must block the heater rod |
+| Heater block bit position | `0` | 0 = first character |
 
 Change these later via **Integration → Configure**. When you're happy with the behaviour in observe mode, turn **Observe mode** off on the card.
 
@@ -328,6 +338,9 @@ All settings are entities (number / switch / select / time), so you can also use
 | Peak: grid import for at least | 10 min | available power ≤ 0 W without a break |
 | Peak: max. EVU block duration | 120 min | always lifted after this, whatever the price |
 | Peak: lock time / max. activations per day | 60 min / 2 | pause after the last EVU lock activation |
+| Throttle: control | Digital (EMS/EEBUS) | digital: one common limit under §14a, PV/battery on top; analogue: 4.2 kW per device |
+| Throttle: max. input power heat pump / AC / wallbox / battery | 9 / 0 / 0 / 0 kW | 0 = device not present; battery = charging power from the grid |
+| Throttle: priority heat pump / AC / wallbox / battery | 1 / 2 / 3 / 4 | 1 = supplied first |
 
 Match the defaults to your system: the battery capacity, and the compressor range for your heat pump (the defaults suit a 7 kW unit such as the WLW186i-7).
 
@@ -345,7 +358,8 @@ target    = clamp(budget − reserve, min, max) if battery released, otherwise m
 ### Entities
 
 - **Sensors:** status (with lots of attributes), available power, power budget, compressor target, activations today, PV runtime today, locked until
-- **Binary sensors:** PV mode requested, PV signal at heat pump, battery release, surplus above threshold; with peak mode: EVU block requested, EVU signal at heat pump
+- **Binary sensors:** PV mode requested, PV signal at heat pump, battery release, surplus above threshold; with peak mode: EVU block requested, EVU signal at heat pump; with throttle mode: throttling active, heater block at heat pump
+- **Throttle mode:** switches *Throttle mode* and *Throttle: control signal*, select *Throttle: control*, sensors minimum power, total power and max. power per device (kW)
 - **Buttons:** lift lock time, reset daily counter (with peak mode also for the EVU block)
 
 ### Removing it

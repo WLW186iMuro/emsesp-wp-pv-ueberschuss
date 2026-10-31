@@ -2,6 +2,13 @@
 
 ## Unveröffentlicht
 
+- **Neu: Throttle Mode – Drosselung nach §14a EnWG (optional).**
+  - Neue Quell-Entität unter *Konfigurieren*: EMS-ESP Eingangs-Option, die den Heizstab sperrt (z. B. `text.boiler_hpin3opt`), mit Bit-Position (Standard 0).
+  - Schalter *Throttle Mode* (Freigabe, auch auf der Karte) und *Drosselung: Steuersignal* (setzt die Steuerbox bzw. eine Automation).
+  - Mindestleistung nach BNetzA BK6-22-300: digital über das EMS `4,2 kW + (n − 1) × GZF × 4,2 kW` (über 11 kW: 40 % der WP-/Klima-Leistung) oder analog 4,2 kW je Gerät.
+  - Verteilung nach einstellbarer Priorität auf Wärmepumpe, Klimagerät, Wallbox und Speicher (max. Eingangsleistung je Gerät, 0 = nicht vorhanden); eigener PV- und Akkustrom kommt bei digitaler Steuerung dazu; eine ruhende Wärmepumpe gibt ihren Anteil weiter.
+  - Wärmepumpe: Heizstab-Sperre und `pvmaxcomp` auf ihren Anteil, danach alter Wert zurück. PV-Betrieb wird beendet; bei aktiver EVU-Sperre bleibt die Wärmepumpe unverändert.
+  - Erlaubte Leistung je Gerät als Sensor (kW), neuer Status „Throttle Mode – Drosselung nach §14a“, eigener Abschnitt und Kachel auf der Karte. Wirkt in jeder Betriebsart; im Beobachtungsmodus nur Logbuch-Einträge.
 - **Neu: Peak-Modus (optional)** – EVU-Sperre der Wärmepumpe bei hohem Strompreis und leerem Akku.
   - Neue Quell-Entitäten unter *Konfigurieren*: EMS-ESP Eingangs-Option für die EVU-Sperre (z. B. `text.boiler_hpin1opt`) mit Bit-Position (Standard 0), Akku-Notstromreserve, aktueller Stundenpreis, Durchschnittspreis heute. Nur alle vier zusammen.
   - Sperre (gewähltes Bit → `1`, die übrigen bleiben) bei: Preissteuerung an, Automatik ohne PV-Betrieb, Stundenpreis ≥ Teuer-Schwelle und > 108 % des Tagesdurchschnitts, Ladestand ≤ Reserve + 2 %, 10 min Netzbezug am Stück, 60 min Pause, max. 2 pro Tag.

@@ -13,6 +13,8 @@ def keys(c) -> list[str]:
     out = ["requested", "signal_active", "battery_release", "surplus"]
     if c.has_peak:
         out += ["peak_active", "evu_signal_active"]
+    if c.has_throttle:
+        out += ["throttle_active", "heater_block_active"]
     return out
 
 
@@ -25,6 +27,8 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddC
         "surplus": SurplusSensor,
         "peak_active": PeakSensor,
         "evu_signal_active": EvuSignalSensor,
+        "throttle_active": ThrottleSensor,
+        "heater_block_active": HeaterBlockSensor,
     }
     async_add_entities(classes[key](c) for key in keys(c))
 
@@ -111,3 +115,31 @@ class EvuSignalSensor(PvSurplusEntity, BinarySensorEntity):
     def available(self) -> bool:
         res = self.controller.result
         return res is not None and res.evu_active is not None
+
+
+class ThrottleSensor(PvSurplusEntity, BinarySensorEntity):
+    """Power limited under §14a EnWG (also in observe mode)."""
+
+    def __init__(self, controller) -> None:
+        super().__init__(controller, "throttle_active")
+
+    @property
+    def is_on(self) -> bool:
+        return self.controller.state.throttle_active
+
+
+class HeaterBlockSensor(PvSurplusEntity, BinarySensorEntity):
+    """Heater block bit actually set at the heat pump (read back from EMS-ESP)."""
+
+    def __init__(self, controller) -> None:
+        super().__init__(controller, "heater_block_active")
+
+    @property
+    def is_on(self) -> bool | None:
+        res = self.controller.result
+        return res.throttle_heater_active if res else None
+
+    @property
+    def available(self) -> bool:
+        res = self.controller.result
+        return res is not None and res.throttle_heater_active is not None

@@ -13,12 +13,13 @@ Diese Anleitung erklärt Schritt für Schritt, wie die Integration arbeitet, wie
 5. [So entscheidet die Integration](#5-so-entscheidet-die-integration)
 6. [Leistungsnachführung (pvmaxcomp)](#6-leistungsnachführung-pvmaxcomp)
 7. [Strompreis-Steuerung (optional)](#7-strompreis-steuerung-optional)
-8. [Die Dashboard-Karte erklärt](#8-die-dashboard-karte-erklärt)
-9. [Betriebsarten](#9-betriebsarten)
-10. [Einstellungen anpassen – Empfehlungen](#10-einstellungen-anpassen--empfehlungen)
-11. [Beispiel: ein sonniger Tag](#11-beispiel-ein-sonniger-tag)
-12. [Entitäten für eigene Automationen](#12-entitäten-für-eigene-automationen)
-13. [Häufige Fragen und Fehlersuche](#13-häufige-fragen-und-fehlersuche)
+8. [Drosselung nach §14a EnWG (Throttle Mode, optional)](#8-drosselung-nach-14a-enwg-throttle-mode-optional)
+9. [Die Dashboard-Karte erklärt](#9-die-dashboard-karte-erklärt)
+10. [Betriebsarten](#10-betriebsarten)
+11. [Einstellungen anpassen – Empfehlungen](#11-einstellungen-anpassen--empfehlungen)
+12. [Beispiel: ein sonniger Tag](#12-beispiel-ein-sonniger-tag)
+13. [Entitäten für eigene Automationen](#13-entitäten-für-eigene-automationen)
+14. [Häufige Fragen und Fehlersuche](#14-häufige-fragen-und-fehlersuche)
 
 ---
 
@@ -231,7 +232,55 @@ Während der Sperre zeigt der Status **Peak-Modus – EVU-Sperre aktiv**, und es
 
 > ⚠️ Prüfe vorher in EMS-ESP, welches Zeichen von `hpin1opt` bei deiner Wärmepumpe die EVU-Sperre ist (bei Buderus/Bosch/Junkers meist das erste). Ein vom Netzbetreiber verdrahteter EVU-Kontakt wird davon nicht berührt.
 
-## 8. Die Dashboard-Karte erklärt
+## 8. Drosselung nach §14a EnWG (Throttle Mode, optional)
+
+Hast du mit deinem Netzbetreiber die netzorientierte Steuerung nach **§14a EnWG** vereinbart (reduzierte Netzentgelte), darf er die Leistung deiner steuerbaren Verbrauchseinrichtungen (Wärmepumpe, Klimagerät, Wallbox, Speicher) zeitweise begrenzen. Der **Throttle Mode** setzt dieses Steuersignal an der Wärmepumpe um und rechnet aus, wie viel Leistung die anderen Geräte noch nutzen dürfen.
+
+**Einrichten:** *Integration → Konfigurieren*
+
+| Feld | Beispiel |
+|---|---|
+| EMS-ESP Eingangs-Option für die Drosselung | `text.boiler_hpin3opt` |
+| Bit-Position der Heizstab-Sperre | `0` (erstes Zeichen, Standard) |
+| PV max. Kompressorleistung + aktuelle Kompressorleistung | wie bei der Leistungsnachführung (Abschnitt 6), damit auch der Kompressor begrenzt wird |
+
+Den Eingang (z. B. Eingang 3 der Buderus-WP) musst du in der Wärmepumpe so einstellen, dass er den **Heizstab sperrt**. Danach gibt es:
+
+- Schalter **Throttle Mode** – schaltet die Funktion frei (auch auf der Karte),
+- Schalter **Drosselung: Steuersignal** – setzt deine Steuerbox bzw. eine Automation auf *an*, solange der Netzbetreiber drosselt,
+- Einstellungsgruppe **Throttle Mode (§14a)**: Steuerung (digital/analog), maximale Eingangsleistung je Gerät in kW (0 = nicht vorhanden) und die Priorität je Gerät (1 = zuerst versorgt).
+
+**Was der Netzbetreiber garantiert** (Festlegung BK6-22-300 der Bundesnetzagentur):
+
+| Steuerung | Mindestleistung |
+|---|---|
+| **Digital über das EMS (EEBUS)** – eine gemeinsame Grenze für alle Geräte | `4,2 kW + (n − 1) × GZF × 4,2 kW`; sind Wärmepumpe oder Klimagerät größer als 11 kW: `max(0,4 × P_WP; 0,4 × P_Klima) + (n − 1) × GZF × 4,2 kW` |
+| **Analog, direkt (Relais)** – feste Grenze je Gerät | Wallbox und Speicher je 4,2 kW; Wärmepumpe und Klimagerät je 4,2 kW, über 11 kW 40 % ihrer Leistung |
+
+`n` = Anzahl der Geräte mit Leistung > 0, Gleichzeitigkeitsfaktor GZF: 2 → 0,8 · 3 → 0,75 · 4 → 0,7 · 5 → 0,65 · 6 → 0,6 · 7 → 0,55 · 8 → 0,5 · ab 9 → 0,45. Beispiel: Wärmepumpe 9 kW, Klimagerät 3 kW, Wallbox 11 kW → digital `4,2 + 2 × 0,75 × 4,2 = 10,5 kW`.
+
+**Verteilung (digital):**
+
+- Die Grenze gilt nur für den Bezug aus dem Netz. Was die PV-Anlage gerade einspeist und was der Akku lädt oder liefert, kommt als **eigene Erzeugung** dazu.
+- Die Leistung wird nach **Priorität** verteilt; jedes Gerät bekommt höchstens seine maximale Eingangsleistung.
+- Läuft die Wärmepumpe gerade nicht (Kompressor < 100 W), geht ihr Anteil an das nächste Gerät. Sie behält aber ihre eigene Grenze, damit sie jederzeit starten kann; die anderen Geräte werden dann bei der nächsten Auswertung (15 s) zurückgenommen.
+
+Bei **analoger Steuerung** bekommt jedes Gerät seine feste Grenze, ohne Umverteilung und ohne eigene Erzeugung.
+
+**Was an der Wärmepumpe passiert:**
+
+- Das gewählte Bit der Eingangs-Option wird auf `1` gesetzt (Heizstab gesperrt), die übrigen Zeichen bleiben.
+- *PV max. Kompressorleistung* wird auf den Anteil der Wärmepumpe gesetzt: sofort, wenn er sinkt, und höchstens alle *Anpassungsintervall* Minuten, wenn er steigt. Danach kommt der alte Wert zurück.
+- Ein laufender PV-Betrieb wird beendet, und während der Drosselung startet keiner (auch nicht in *Manuell*).
+- Ist die **EVU-Sperre** (Peak-Modus) aktiv, bleibt die Wärmepumpe unverändert; ihr Anteil geht an die anderen Geräte.
+
+Die Drosselung wirkt in **jeder Betriebsart**, weil sie eine Pflicht gegenüber dem Netzbetreiber ist. Der Status zeigt dann **Throttle Mode – Drosselung nach §14a**. Im **Beobachtungsmodus** wird nichts geschrieben; das Logbuch zeigt „[Beobachtung] würde Drosselung nach §14a starten …“.
+
+**Für die anderen Geräte** gibt es je einen Sensor mit der Leistung, die sie gerade nutzen dürfen (kW): *Drosselung: Max. Leistung Klimagerät / Wallbox / Ladeleistung Speicher* (und Wärmepumpe). Ohne Drosselung zeigen sie die volle Leistung. Mit einer Automation überträgst du den Wert an das Gerät, z. B. an die Ladeleistung deiner Wallbox.
+
+> ⚠️ Die Integration ersetzt keine vom Netzbetreiber verlangte Steuerbox und ist kein zertifiziertes EMS. Prüfe die Werte mit deinem Netzbetreiber und teste die Funktion zuerst im Beobachtungsmodus.
+
+## 9. Die Dashboard-Karte erklärt
 
 ![Dashboard-Karte](screenshots/karte.png)
 
@@ -263,7 +312,7 @@ Während der Sperre zeigt der Status **Peak-Modus – EVU-Sperre aktiv**, und es
 
 **Steuerung**
 
-- **Automatik / Aus / Manuell an:** siehe Abschnitt 9.
+- **Automatik / Aus / Manuell an:** siehe Abschnitt 10.
 - **Beobachtungsmodus:** nur rechnen, nichts schreiben.
 - **Leistungsnachführung:** pvmaxcomp anpassen ja/nein.
 - **PV-Prognose verwenden:** Solcast für Akku-Freigabe und Einschalten nutzen.
@@ -283,7 +332,7 @@ title: Wärmepumpe PV  # optional
 show_settings: true   # Einstellungen anzeigen
 ```
 
-## 9. Betriebsarten
+## 10. Betriebsarten
 
 | Betriebsart | Verhalten |
 |---|---|
@@ -291,7 +340,7 @@ show_settings: true   # Einstellungen anzeigen
 | **Aus** | gibt die Wärmepumpe in den Normalbetrieb zurück (Bit = 0) und schreibt danach nichts mehr. Du kannst den Eingang dann selbst bedienen. |
 | **Manuell an** | PV-Betrieb sofort an, ohne Bedingungen und ohne Tageszähler. Gut zum Testen, ob die Wärmepumpe auf das Signal reagiert. Danach wieder auf Automatik stellen. |
 
-## 10. Einstellungen anpassen – Empfehlungen
+## 11. Einstellungen anpassen – Empfehlungen
 
 | Situation | Empfehlung |
 |---|---|
@@ -304,7 +353,7 @@ show_settings: true   # Einstellungen anzeigen
 
 Alle Einstellungen sind auch Entitäten (number / switch / select / time). Du kannst sie in Automationen ändern, z. B. im Winter ein anderes Startfenster.
 
-## 11. Beispiel: ein sonniger Tag
+## 12. Beispiel: ein sonniger Tag
 
 | Uhrzeit | Was passiert | Status |
 |---|---|---|
@@ -318,7 +367,7 @@ Alle Einstellungen sind auch Entitäten (number / switch / select / time). Du ka
 | 16:40 | Sperrzeit vorbei, aber außerhalb Startfenster | Außerhalb Startfenster |
 | 18:20 | Sonnenuntergang | Sonne untergegangen |
 
-## 12. Entitäten für eigene Automationen
+## 13. Entitäten für eigene Automationen
 
 | Entität | Inhalt |
 |---|---|
@@ -337,12 +386,16 @@ Alle Einstellungen sind auch Entitäten (number / switch / select / time). Du ka
 | `binary_sensor.<name>_evu_sperre_angefordert` | Peak-Modus: Integration will die EVU-Sperre |
 | `binary_sensor.<name>_evu_signal_an_warmepumpe` | Peak-Modus: EVU-Bit tatsächlich gesetzt |
 | `sensor.<name>_evu_sperren_heute` | Peak-Modus: EVU-Sperren heute |
+| `switch.<name>_throttle_mode` | Throttle Mode an/aus (nur mit Eingangs-Option für die Drosselung) |
+| `switch.<name>_drosselung_steuersignal` | §14a-Steuersignal, von Steuerbox/Automation gesetzt |
+| `binary_sensor.<name>_drosselung_aktiv` | Drosselung läuft |
+| `sensor.<name>_drosselung_max_leistung_wallbox` | erlaubte Leistung Wallbox in kW (ebenso `…_klimagerat`, `…_warmepumpe`, `…_max_ladeleistung_speicher`) |
 
 ![Geräteseite](screenshots/geraet.png)
 
 Die genauen IDs hängen vom Gerätenamen ab. Du findest sie unter *Einstellungen → Geräte & Dienste → EMS-ESP WP PV Überschuss → Gerät*.
 
-## 13. Häufige Fragen und Fehlersuche
+## 14. Häufige Fragen und Fehlersuche
 
 **Die Wärmepumpe reagiert nicht, obwohl „Signal WP: an“.**
 Prüfe im Regler der Wärmepumpe, ob der Eingang für PV / SG Ready eingestellt ist. Teste mit *Manuell an*.

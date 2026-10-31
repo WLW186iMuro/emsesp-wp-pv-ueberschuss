@@ -92,6 +92,23 @@ FIELDS = {
         "€/kWh oder ct/kWh, z. B. Tibber „Average price today“.",
         "€/kWh or ct/kWh, e.g. Tibber “Average price today”.",
     ),
+    "throttle_entity": (
+        "EMS-ESP Eingangs-Option für die Drosselung nach §14a (optional, z. B. hpin3opt)",
+        "EMS-ESP input option for throttling under §14a (optional, e.g. hpin3opt)",
+        "Throttle Mode: Text-Entität des Eingangs, der an der Wärmepumpe den Heizstab sperrt. Das gewählte Bit wird während der Drosselung auf 1 gesetzt, die übrigen Zeichen bleiben unverändert. Die Leistung wird zusätzlich über die PV max. Kompressorleistung begrenzt.",
+        "Throttle mode: text entity of the input that blocks the heater rod at the heat pump. The selected bit is set to 1 while throttled; the other characters stay unchanged. The power is also limited via the PV max. compressor power.",
+    ),
+    "throttle_bit": (
+        "Bit-Position der Heizstab-Sperre",
+        "Heater block bit position",
+        "0 = erstes Zeichen.",
+        "0 = first character.",
+    ),
+}
+
+THROTTLE_CONTROLS = {
+    "digital": ("Digital (EMS/EEBUS)", "Digital (EMS/EEBUS)"),
+    "analog": ("Analog (Relais)", "Analogue (relay)"),
 }
 
 SELECTORS = {
@@ -127,6 +144,7 @@ STATUS = {
     "price_cheap": ("Günstiger Strom – PV-Betrieb", "Cheap electricity – PV mode"),
     "price_high": ("Strompreis zu hoch", "Electricity price too high"),
     "peak_block": ("Peak-Modus – EVU-Sperre aktiv", "Peak mode – EVU block active"),
+    "throttled": ("Throttle Mode – Drosselung nach §14a", "Throttle mode – §14a throttling"),
 }
 
 ENTITIES = {
@@ -139,6 +157,12 @@ ENTITIES = {
         "runtime_today": ("PV-Laufzeit heute", "PV runtime today"),
         "lock_until": ("Sperrzeit bis", "Locked until"),
         "peak_activations_today": ("EVU-Sperren heute", "EVU blocks today"),
+        "throttle_min_power": ("Drosselung: Mindestleistung nach §14a", "Throttle: minimum power under §14a"),
+        "throttle_budget": ("Drosselung: Leistung gesamt (inkl. PV/Akku)", "Throttle: total power (incl. PV/battery)"),
+        "throttle_hp_power": ("Drosselung: Max. Leistung Wärmepumpe", "Throttle: max. power heat pump"),
+        "throttle_ac_power": ("Drosselung: Max. Leistung Klimagerät", "Throttle: max. power air conditioner"),
+        "throttle_wallbox_power": ("Drosselung: Max. Leistung Wallbox", "Throttle: max. power wallbox"),
+        "throttle_battery_power": ("Drosselung: Max. Ladeleistung Speicher", "Throttle: max. charging power battery"),
     },
     "binary_sensor": {
         "requested": ("PV-Betrieb angefordert", "PV mode requested"),
@@ -147,6 +171,8 @@ ENTITIES = {
         "surplus": ("Überschuss über Einschaltschwelle", "Surplus above threshold"),
         "peak_active": ("EVU-Sperre angefordert", "EVU block requested"),
         "evu_signal_active": ("EVU-Signal an Wärmepumpe", "EVU signal at heat pump"),
+        "throttle_active": ("Drosselung aktiv", "Throttling active"),
+        "heater_block_active": ("Heizstab-Sperre an Wärmepumpe", "Heater block at heat pump"),
     },
     "number": {
         "on_threshold_w": ("Einschaltschwelle", "Switch-on threshold"),
@@ -175,6 +201,14 @@ ENTITIES = {
         "peak_max_duration_min": ("Peak: Max. Dauer der EVU-Sperre", "Peak: max. EVU block duration"),
         "peak_lock_min": ("Peak: Sperrzeit nach der letzten EVU-Sperre", "Peak: lock time after the last EVU lock activation"),
         "peak_max_per_day": ("Peak: Max. Aktivierungen pro Tag", "Peak: max. activations per day"),
+        "throttle_hp_kw": ("Drosselung: Max. Eingangsleistung Wärmepumpe (inkl. Heizstab)", "Throttle: max. input power heat pump (incl. heater rod)"),
+        "throttle_ac_kw": ("Drosselung: Max. Eingangsleistung Klimagerät", "Throttle: max. input power air conditioner"),
+        "throttle_wallbox_kw": ("Drosselung: Max. Eingangsleistung Wallbox", "Throttle: max. input power wallbox"),
+        "throttle_battery_kw": ("Drosselung: Max. Netz-Ladeleistung Speicher", "Throttle: max. grid charging power battery"),
+        "throttle_prio_hp": ("Drosselung: Priorität Wärmepumpe", "Throttle: priority heat pump"),
+        "throttle_prio_ac": ("Drosselung: Priorität Klimagerät", "Throttle: priority air conditioner"),
+        "throttle_prio_wallbox": ("Drosselung: Priorität Wallbox", "Throttle: priority wallbox"),
+        "throttle_prio_battery": ("Drosselung: Priorität Speicher", "Throttle: priority battery"),
     },
     "switch": {
         "observe": ("Beobachtungsmodus", "Observe mode"),
@@ -182,8 +216,13 @@ ENTITIES = {
         "use_forecast": ("PV-Prognose verwenden", "Use PV forecast"),
         "price_control": ("Preissteuerung", "Price control"),
         "price_stop_expensive": ("Bei teurem Strom PV-Betrieb beenden", "Stop PV mode on expensive electricity"),
+        "throttle_enabled": ("Throttle Mode", "Throttle mode"),
+        "throttle_signal": ("Drosselung: Steuersignal", "Throttle: control signal"),
     },
-    "select": {"mode": ("Betriebsart", "Mode")},
+    "select": {
+        "mode": ("Betriebsart", "Mode"),
+        "throttle_control": ("Drosselung: Steuerung", "Throttle: control"),
+    },
     "time": {
         "window_start": ("Startfenster von", "Start window from"),
         "window_end": ("Startfenster bis", "Start window until"),
@@ -235,6 +274,7 @@ def build(lang: int) -> dict:
             entity[platform][key] = {"name": names[lang]}
     entity["sensor"]["status"]["state"] = {k: v[lang] for k, v in STATUS.items()}
     entity["select"]["mode"]["state"] = {k: v[lang] for k, v in MODES.items()}
+    entity["select"]["throttle_control"]["state"] = {k: v[lang] for k, v in THROTTLE_CONTROLS.items()}
     return {
         "config": {
             "step": {

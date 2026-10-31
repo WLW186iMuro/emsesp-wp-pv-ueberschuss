@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .entity import PvSurplusEntity
-from .logic import CHECK_KEYS, PEAK_CHECK_KEYS, STATUS_OPTIONS
+from .logic import CHECK_KEYS, PEAK_CHECK_KEYS, STATUS_OPTIONS, THROTTLE_DEVICES, priority_order
 
 
 def _iso(value) -> str | None:
@@ -33,6 +33,9 @@ def keys(c) -> list[str]:
         out += ["power_budget", "compressor_target"]
     if c.has_peak:
         out.append("peak_activations_today")
+    if c.has_throttle:
+        out += ["throttle_min_power", "throttle_budget"]
+        out += [f"throttle_{key}_power" for key in THROTTLE_DEVICES]
     return out
 
 
@@ -48,7 +51,15 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddC
         "compressor_target": CompressorTargetSensor,
         "peak_activations_today": PeakActivationsSensor,
     }
-    async_add_entities(classes[key](c) for key in keys(c))
+    entities = []
+    for key in keys(c):
+        if key in classes:
+            entities.append(classes[key](c))
+        elif key in ("throttle_min_power", "throttle_budget"):
+            entities.append(ThrottlePowerSensor(c, key))
+        else:
+            entities.append(DevicePowerSensor(c, key))
+    async_add_entities(entities)
 
 
 class StatusSensor(PvSurplusEntity, SensorEntity):
@@ -96,6 +107,14 @@ class StatusSensor(PvSurplusEntity, SensorEntity):
             "peak_import_since",
             "evu_bits",
             "peak_max_per_day",
+            "throttle_since",
+            "throttle_min_kw",
+            "throttle_bonus_kw",
+            "throttle_budget_kw",
+            "throttle_alloc_kw",
+            "throttle_devices",
+            "throttle_bits",
+            "throttle_order",
         }
     )
 
@@ -129,6 +148,7 @@ class StatusSensor(PvSurplusEntity, SensorEntity):
             "price_cheap_ct": s.price_cheap_ct,
             "price_expensive_ct": s.price_expensive_ct,
             "peak": c.has_peak,
+            "throttle": c.has_throttle,
         }
         if c.has_peak:
             attrs.update(
@@ -138,8 +158,31 @@ class StatusSensor(PvSurplusEntity, SensorEntity):
                     "peak_max_per_day": int(s.peak_max_per_day),
                 }
             )
+        if c.has_throttle:
+            attrs.update(
+                {
+                    "throttle_enabled": s.throttle_enabled,
+                    "throttle_signal": s.throttle_signal,
+                    "throttle_active": st.throttle_active,
+                    "throttle_control": s.throttle_control,
+                    "throttle_order": priority_order(s),
+                }
+            )
         if res is None or inp is None:
             return attrs
+        if c.has_throttle:
+            attrs.update(
+                {
+                    "throttle_since": _iso(res.throttle_since),
+                    "throttle_devices": res.throttle_devices,
+                    "throttle_min_kw": res.throttle_min_kw,
+                    "throttle_bonus_kw": res.throttle_bonus_kw,
+                    "throttle_budget_kw": res.throttle_budget_kw,
+                    "throttle_alloc_kw": res.throttle_alloc_kw,
+                    "heater_block_active": res.throttle_heater_active,
+                    "throttle_bits": inp.throttle_bits,
+                }
+            )
         if c.has_peak:
             attrs.update(
                 {
@@ -280,3 +323,39 @@ class PeakActivationsSensor(PvSurplusEntity, SensorEntity):
     @property
     def native_value(self):
         return self.controller.state.peak_count
+
+
+class ThrottlePowerSensor(PvSurplusEntity, SensorEntity):
+    """§14a: power the grid operator guarantees, and the budget incl. own PV / battery power."""
+
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfPower.KILO_WATT
+    _attr_suggested_display_precision = 2
+
+    @property
+    def native_value(self):
+        res = self.controller.result
+        if res is None:
+            return None
+        if self.key == "throttle_min_power":
+            return res.throttle_min_kw
+        return res.throttle_budget_kw if res.throttle_active else None
+
+
+class DevicePowerSensor(PvSurplusEntity, SensorEntity):
+    """Maximum power a device may use right now (its full power while not throttled)."""
+
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfPower.KILO_WATT
+    _attr_suggested_display_precision = 2
+
+    def __init__(self, controller, key: str) -> None:
+        super().__init__(controller, key)
+        self._device = key.removeprefix("throttle_").removesuffix("_power")
+
+    @property
+    def native_value(self):
+        res = self.controller.result
+        return res.throttle_alloc_kw.get(self._device) if res else None

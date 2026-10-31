@@ -21,8 +21,11 @@ from .const import (
     CARD_FILE,
     CONF_EVU_BIT,
     CONF_EVU_ENTITY,
+    CONF_PVMAXCOMP_ENTITY,
     CONF_SIGNAL_BIT,
     CONF_SIGNAL_ENTITY,
+    CONF_THROTTLE_BIT,
+    CONF_THROTTLE_ENTITY,
     DOMAIN,
     FRONTEND_URL,
     PLATFORMS,
@@ -171,4 +174,33 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
             )
         except HomeAssistantError as err:
             _LOGGER.warning("Could not reset %s: %s", evu_id, err)
+    # Lift a heater block of the §14a throttling and restore the compressor limit
+    stored = data.get("state") or {}
+    heater_id = cfg.get(CONF_THROTTLE_ENTITY)
+    heater = hass.states.get(heater_id) if heater_id else None
+    heater_bit = int(cfg.get(CONF_THROTTLE_BIT) or 0)
+    if (
+        stored.get("throttle_written")
+        and heater
+        and valid_bits(heater.state, heater_bit)
+        and heater.state[heater_bit] == "1"
+    ):
+        try:
+            await hass.services.async_call(
+                "text",
+                "set_value",
+                {"entity_id": heater_id, "value": set_bit(heater.state, heater_bit, False)},
+                blocking=True,
+            )
+        except HomeAssistantError as err:
+            _LOGGER.warning("Could not reset %s: %s", heater_id, err)
+    restore = stored.get("throttle_comp_restore")
+    comp_id = cfg.get(CONF_PVMAXCOMP_ENTITY)
+    if restore is not None and comp_id and hass.states.get(comp_id):
+        try:
+            await hass.services.async_call(
+                "number", "set_value", {"entity_id": comp_id, "value": restore}, blocking=True
+            )
+        except HomeAssistantError as err:
+            _LOGGER.warning("Could not restore %s: %s", comp_id, err)
     await store.async_remove()

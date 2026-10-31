@@ -27,6 +27,7 @@
         grid: "Netz",
         price: "Strompreis",
         evu: "EVU-Sperren heute",
+        throttle: "§14a-Drosselung",
       },
       evuActiveUntil: "bis",
       evuLockUntil: "Sperrzeit bis",
@@ -73,6 +74,17 @@
         limit: "Tageslimit nicht erreicht",
         no_surplus: "Netzbezug lange genug",
       },
+      throttle: "Throttle Mode (§14a)",
+      throttleRunning: "Drosselung nach §14a aktiv",
+      throttleIdle: "kein Steuersignal",
+      throttleOff: "bereit",
+      throttleControl: { digital: "Digital (EMS/EEBUS)", analog: "Analog (Relais)" },
+      throttleMin: "Mindestleistung nach §14a",
+      throttleBonus: "eigene Erzeugung (PV/Akku)",
+      throttleBudget: "Leistung gesamt",
+      throttleMax: "max.",
+      throttleEvu: "EVU-Sperre aktiv – Wärmepumpe bleibt unverändert",
+      devices: { hp: "Wärmepumpe", ac: "Klimagerät", wallbox: "Wallbox", battery: "Speicher" },
       lockUntil: "bis",
       control: "Steuerung",
       modes: { auto: "Automatik", off: "Aus", manual: "Manuell an" },
@@ -81,6 +93,8 @@
         dynamic_power: ["Leistungsnachführung", "PV max. Kompressorleistung an den Überschuss anpassen"],
         use_forecast: ["PV-Prognose verwenden", "Solcast für Akku-Freigabe und Einschalten nutzen"],
         price_control: ["Preissteuerung", "Bei günstigem Strom einschalten, bei teurem nicht starten"],
+        throttle_enabled: ["Throttle Mode (§14a)", "Leistung begrenzen, sobald der Netzbetreiber ein Steuersignal sendet"],
+        throttle_signal: ["§14a-Steuersignal", "wird von der Steuerbox bzw. einer Automation gesetzt"],
       },
       settings: "Einstellungen",
       groups: {
@@ -90,6 +104,7 @@
         compressor: "Leistungsnachführung",
         price: "Strompreis",
         peak: "Peak-Modus (EVU-Sperre)",
+        throttle: "Throttle Mode (§14a)",
       },
       fields: {
         on_threshold_w: ["Einschaltschwelle", "verfügbare Leistung zum Einschalten"],
@@ -121,6 +136,15 @@
         peak_max_duration_min: ["Max. Dauer der Sperre", "danach immer aufheben, egal wie der Preis ist"],
         peak_lock_min: ["Sperrzeit", "Pause nach der letzten EVU-Sperre"],
         peak_max_per_day: ["Max. Aktivierungen pro Tag", ""],
+        throttle_control: ["Steuerung durch den Netzbetreiber", "digital: gemeinsame Grenze, PV/Akku zusätzlich; analog: feste Grenze je Gerät"],
+        throttle_hp_kw: ["Max. Eingangsleistung Wärmepumpe", "inkl. Heizstab, 0 = keine Wärmepumpe"],
+        throttle_ac_kw: ["Max. Eingangsleistung Klimagerät", "0 = kein Klimagerät"],
+        throttle_wallbox_kw: ["Max. Eingangsleistung Wallbox", "0 = keine Wallbox"],
+        throttle_battery_kw: ["Max. Netz-Ladeleistung Speicher", "0 = kein Speicher oder kein Laden aus dem Netz"],
+        throttle_prio_hp: ["Priorität Wärmepumpe", "1 = zuerst versorgt"],
+        throttle_prio_ac: ["Priorität Klimagerät", ""],
+        throttle_prio_wallbox: ["Priorität Wallbox", ""],
+        throttle_prio_battery: ["Priorität Speicher", ""],
       },
       buttons: { reset_lock: "Sperrzeit aufheben", reset_counter: "Tageszähler zurücksetzen" },
       lastAction: "Zuletzt",
@@ -143,6 +167,7 @@
         grid: "Grid",
         price: "Electricity price",
         evu: "EVU locks today",
+        throttle: "§14a throttling",
       },
       evuActiveUntil: "until",
       evuLockUntil: "lock time until",
@@ -189,6 +214,17 @@
         limit: "Daily limit not reached",
         no_surplus: "Grid import long enough",
       },
+      throttle: "Throttle mode (§14a)",
+      throttleRunning: "§14a throttling active",
+      throttleIdle: "no control signal",
+      throttleOff: "ready",
+      throttleControl: { digital: "Digital (EMS/EEBUS)", analog: "Analogue (relay)" },
+      throttleMin: "Minimum power under §14a",
+      throttleBonus: "own generation (PV/battery)",
+      throttleBudget: "Total power",
+      throttleMax: "max.",
+      throttleEvu: "EVU block active – heat pump left unchanged",
+      devices: { hp: "Heat pump", ac: "Air conditioner", wallbox: "Wallbox", battery: "Battery" },
       lockUntil: "until",
       control: "Control",
       modes: { auto: "Automatic", off: "Off", manual: "Manual on" },
@@ -197,6 +233,8 @@
         dynamic_power: ["Compressor power control", "Adapt PV max. compressor power to the surplus"],
         use_forecast: ["Use PV forecast", "Use Solcast for battery release and switch-on"],
         price_control: ["Price control", "Switch on with cheap electricity, do not start when expensive"],
+        throttle_enabled: ["Throttle mode (§14a)", "Limit the power as soon as the grid operator sends a control signal"],
+        throttle_signal: ["§14a control signal", "set by the control box or an automation"],
       },
       settings: "Settings",
       groups: {
@@ -206,6 +244,7 @@
         compressor: "Compressor power control",
         price: "Electricity price",
         peak: "Peak mode (EVU block)",
+        throttle: "Throttle mode (§14a)",
       },
       fields: {
         on_threshold_w: ["Switch-on threshold", "available power needed to start"],
@@ -237,6 +276,15 @@
         peak_max_duration_min: ["Max. block duration", "always lifted after this, whatever the price"],
         peak_lock_min: ["Lock time", "pause after the last EVU lock activation"],
         peak_max_per_day: ["Max. activations per day", ""],
+        throttle_control: ["Control by the grid operator", "digital: one common limit, PV/battery on top; analogue: fixed limit per device"],
+        throttle_hp_kw: ["Max. input power heat pump", "incl. heater rod, 0 = no heat pump"],
+        throttle_ac_kw: ["Max. input power air conditioner", "0 = no air conditioner"],
+        throttle_wallbox_kw: ["Max. input power wallbox", "0 = no wallbox"],
+        throttle_battery_kw: ["Max. grid charging power battery", "0 = no battery or no charging from the grid"],
+        throttle_prio_hp: ["Priority heat pump", "1 = supplied first"],
+        throttle_prio_ac: ["Priority air conditioner", ""],
+        throttle_prio_wallbox: ["Priority wallbox", ""],
+        throttle_prio_battery: ["Priority battery", ""],
       },
       buttons: { reset_lock: "Lift lock time", reset_counter: "Reset daily counter" },
       lastAction: "Last",
@@ -251,8 +299,14 @@
     ["compressor", ["comp_min_kw", "comp_max_kw", "comp_reserve_kw", "comp_step_kw", "comp_interval_min"]],
     ["price", ["price_cheap_ct", "price_expensive_ct", "price_stop_expensive", "price_comp_kw"]],
     ["peak", ["peak_factor_pct", "peak_soc_margin", "peak_import_min", "peak_max_duration_min", "peak_lock_min", "peak_max_per_day"]],
+    ["throttle", [
+      "throttle_control", "throttle_hp_kw", "throttle_ac_kw", "throttle_wallbox_kw", "throttle_battery_kw",
+      "throttle_prio_hp", "throttle_prio_ac", "throttle_prio_wallbox", "throttle_prio_battery",
+    ]],
   ];
   const SWITCH_FIELDS = new Set(["price_stop_expensive"]);
+  const SELECT_FIELDS = new Set(["throttle_control"]);
+  const DEVICES = ["hp", "ac", "wallbox", "battery"];
   const CHECKS = ["sensors", "sun", "window", "battery", "lock", "limit", "surplus", "forecast", "price", "delay"];
   const PEAK_CHECKS = ["sensors", "pv_off", "expensive", "above_average", "battery", "lock", "limit", "no_surplus"];
 
@@ -272,6 +326,7 @@
     price_cheap: "sun",
     price_high: "warn",
     peak_block: "error",
+    throttled: "warn",
   };
 
   const esc = (s) =>
@@ -342,7 +397,10 @@
     .inp input[type=time] { text-align:right; }
     .inp input:focus { outline:2px solid var(--primary-color); outline-offset:-1px; }
     .inp .u { width:34px; font-size:.8rem; color:var(--secondary-text-color); }
-    .inp input.saved { outline:2px solid var(--success-color, #43a047); }
+    .inp input.saved, .inp select.saved { outline:2px solid var(--success-color, #43a047); }
+    .inp select { max-width:190px; box-sizing:border-box; padding:6px 8px; border-radius:8px; border:1px solid var(--divider-color); background:var(--card-background-color); color:var(--primary-text-color); font:inherit; font-size:.88rem; }
+    .alloc { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:4px 16px; margin-top:6px; }
+    .alloc .check .d { color:var(--primary-text-color); }
     .foot { margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; }
     .btn { border:1px solid var(--divider-color); background:transparent; color:var(--primary-text-color); border-radius:999px; padding:6px 14px; font:inherit; font-size:.82rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
     .btn ha-icon { --mdc-icon-size:16px; }
@@ -525,7 +583,7 @@
         return;
       }
       const has = (k) => !!this._map[k];
-      const toggles = ["observe", "dynamic_power", "use_forecast", "price_control"].filter(has);
+      const toggles = ["observe", "dynamic_power", "use_forecast", "price_control", "throttle_enabled", "throttle_signal"].filter(has);
       const groups = GROUPS.map(([g, keys]) => [g, keys.filter(has)]).filter(([, keys]) => keys.length);
 
       root.innerHTML = `
@@ -551,6 +609,11 @@
             <div class="checks" id="peak-checks"></div>
             <div class="run" id="peak-run" hidden></div>
           </div>
+          <div class="sec" id="throttle-sec" hidden>
+            <div class="sec-t" id="throttle-title"></div>
+            <div class="run" id="throttle-run"></div>
+            <div class="alloc" id="throttle-alloc"></div>
+          </div>
           <div class="sec">
             <div class="sec-t">${esc(t.control)}</div>
             <div class="modes" id="modes">
@@ -572,6 +635,12 @@
                   ${keys
                     .map((k) => {
                       const [label, help] = t.fields[k] || [k, ""];
+                      if (SELECT_FIELDS.has(k)) {
+                        return `<div class="field"><div class="txt"><div class="n">${esc(label)}</div>${help ? `<div class="h">${esc(help)}</div>` : ""}</div>
+                        <div class="inp"><select data-select="${k}">${Object.entries(t.throttleControl)
+                          .map(([v, l]) => `<option value="${v}">${esc(l)}</option>`)
+                          .join("")}</select></div></div>`;
+                      }
                       if (SWITCH_FIELDS.has(k)) {
                         return `<div class="field"><div class="txt"><div class="n">${esc(label)}</div>${help ? `<div class="h">${esc(help)}</div>` : ""}</div>
                         <ha-switch data-toggle="${k}"></ha-switch></div>`;
@@ -608,6 +677,14 @@
       );
       root.querySelectorAll("[data-field]").forEach((inp) =>
         inp.addEventListener("change", () => this._saveField(inp))
+      );
+      root.querySelectorAll("[data-select]").forEach((sel) =>
+        sel.addEventListener("change", () =>
+          this._call("select", "select_option", { entity_id: this._map[sel.dataset.select], option: sel.value }).then(() => {
+            sel.classList.add("saved");
+            setTimeout(() => sel.classList.remove("saved"), 900);
+          })
+        )
       );
       root.querySelectorAll("[data-press]").forEach((b) =>
         b.addEventListener("click", () => this._call("button", "press", { entity_id: this._map[b.dataset.press] }))
@@ -752,6 +829,16 @@
               : `${t.runtime} 0 min`,
         });
       }
+      if (a.throttle && a.throttle_enabled) {
+        const since = a.throttle_active && a.throttle_since ? new Date(a.throttle_since).getTime() : NaN;
+        const thrRuntime = Number.isNaN(since) ? 0 : Math.max(0, (Date.now() - since) / 60000);
+        tiles.push({
+          l: t.tiles.throttle,
+          v: a.throttle_active ? `${this._num(a.throttle_budget_kw, 1)} kW` : t.throttleOff,
+          cls: a.throttle_active ? "neg" : "",
+          s: a.throttle_active ? `${t.runtime} ${this._num(thrRuntime)} min` : t.throttleIdle,
+        });
+      }
       root.getElementById("tiles").innerHTML = tiles
         .map((x) => `<div class="tile"><div class="l">${esc(x.l)}</div><div class="v ${x.cls || ""}">${esc(x.v)}</div><div class="s">${esc(x.s || "")}</div></div>`)
         .join("");
@@ -838,6 +925,37 @@
         }
       }
 
+      // Throttle mode (§14a)
+      const thrSec = root.getElementById("throttle-sec");
+      thrSec.hidden = !a.throttle || a.throttle_enabled !== true;
+      if (!thrSec.hidden) {
+        const kw = (v) => (v !== null && v !== undefined ? `${this._num(v, 2)} kW` : "–");
+        const active = !!a.throttle_active;
+        root.getElementById("throttle-title").textContent = active ? t.throttleRunning : t.throttle;
+        const lines = [`<b>${esc(t.control)}</b> ${esc(t.throttleControl[a.throttle_control] || a.throttle_control || "–")}`];
+        if (active) {
+          lines.push(`<b>${esc(t.since)}</b> ${esc(this._time(a.throttle_since))}`);
+          lines.push(`<b>${esc(t.throttleMin)}</b> ${esc(kw(a.throttle_min_kw))}`);
+          if (a.throttle_bonus_kw !== null && a.throttle_bonus_kw !== undefined) {
+            lines.push(`<b>+ ${esc(t.throttleBonus)}</b> ${esc(kw(a.throttle_bonus_kw))}`);
+          }
+          lines.push(`<b>${esc(t.throttleBudget)}</b> ${esc(kw(a.throttle_budget_kw))}`);
+          if (a.peak_active) lines.push(esc(t.throttleEvu));
+        } else {
+          lines.push(`<b>${esc(t.throttleMin)}</b> ${esc(kw(a.throttle_min_kw))} · ${esc(t.throttleIdle)}`);
+        }
+        root.getElementById("throttle-run").innerHTML = lines.join("<br>");
+        const alloc = a.throttle_alloc_kw || {};
+        const order = (a.throttle_order || DEVICES).filter((d) => (val(`throttle_${d}_kw`) ?? 0) > 0);
+        root.getElementById("throttle-alloc").innerHTML = order
+          .map((d, i) => {
+            const max = val(`throttle_${d}_kw`);
+            const limited = active && (alloc[d] ?? 0) < (max ?? 0) - 0.005;
+            return `<div class="check ${limited ? "no" : "ok"}"><ha-icon icon="${limited ? "mdi:speedometer-slow" : "mdi:speedometer"}"></ha-icon><span>${i + 1}. ${esc(t.devices[d])}</span><span class="d">${esc(kw(alloc[d]))} / ${esc(t.throttleMax)} ${esc(kw(max))}</span></div>`;
+          })
+          .join("");
+      }
+
       // Controls
       const mode = this._st("mode")?.state;
       root.querySelectorAll("[data-mode]").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
@@ -853,6 +971,11 @@
 
       // Settings (do not overwrite a field the user is editing)
       const active = root.activeElement;
+      root.querySelectorAll("[data-select]").forEach((sel) => {
+        const s = this._st(sel.dataset.select);
+        if (s && sel !== active) sel.value = s.state;
+        sel.disabled = !s || s.state === "unavailable";
+      });
       root.querySelectorAll("[data-field]").forEach((inp) => {
         const key = inp.dataset.field;
         const s = this._st(key);

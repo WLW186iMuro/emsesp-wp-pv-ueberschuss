@@ -32,6 +32,8 @@ from .const import (
     CONF_SIGNAL_BIT,
     CONF_SIGNAL_ENTITY,
     CONF_SOC_ENTITY,
+    CONF_THROTTLE_BIT,
+    CONF_THROTTLE_ENTITY,
     DEFAULT_NAME,
     default_name,
     DOMAIN,
@@ -48,6 +50,7 @@ OPTIONAL_ENTITIES = [
     CONF_FORECAST_30MIN_ENTITY,
     CONF_PRICE_ENTITY,
     *PEAK_ENTITIES,
+    CONF_THROTTLE_ENTITY,
 ]
 PRICE_ENTITIES = [CONF_PRICE_ENTITY, CONF_HOURLY_PRICE_ENTITY, CONF_AVG_PRICE_ENTITY]
 
@@ -113,6 +116,10 @@ def _schema(include_name: bool, name: str = DEFAULT_NAME) -> vol.Schema:
             vol.Optional(CONF_AVG_PRICE_ENTITY): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain=["sensor", "input_number"])
             ),
+            vol.Optional(CONF_THROTTLE_ENTITY): _entity("text"),
+            vol.Required(CONF_THROTTLE_BIT, default=0): selector.NumberSelector(
+                selector.NumberSelectorConfig(min=0, max=14, step=1, mode=selector.NumberSelectorMode.BOX)
+            ),
         }
     )
     return vol.Schema(fields)
@@ -146,6 +153,7 @@ def _normalize(user_input: dict[str, Any]) -> dict[str, Any]:
     data = dict(user_input)
     data[CONF_SIGNAL_BIT] = int(data.get(CONF_SIGNAL_BIT) or 0)
     data[CONF_EVU_BIT] = int(data.get(CONF_EVU_BIT) or 0)
+    data[CONF_THROTTLE_BIT] = int(data.get(CONF_THROTTLE_BIT) or 0)
     for key in OPTIONAL_ENTITIES:
         data[key] = data.get(key) or None
     if data.get(CONF_PRICE_UNIT) not in PRICE_UNIT_MODES:

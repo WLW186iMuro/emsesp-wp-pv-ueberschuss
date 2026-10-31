@@ -16,7 +16,21 @@ from datetime import timedelta
 
 from homeassistant.util import dt as dt_util
 
-from .conftest import AVERAGE, BATTERY, EVU, GRID, HOURLY, PRICE, PRICE_NO_UNIT, RESERVE, SIGNAL, SOC
+from .conftest import (
+    AVERAGE,
+    BATTERY,
+    EVU,
+    GRID,
+    HEATER,
+    HOURLY,
+    HP_POWER,
+    PRICE,
+    PRICE_NO_UNIT,
+    PVMAXCOMP,
+    RESERVE,
+    SIGNAL,
+    SOC,
+)
 
 BASE = {
     "signal_entity": SIGNAL,
@@ -391,3 +405,118 @@ async def test_buttons_reset_evu_lock_and_counter(hass: HomeAssistant, sources) 
     assert controller.state.peak_count == 0
     assert hass.states.get(_eid(hass, entry, "sensor", "peak_activations_today")).state == "0"
     assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+THROTTLE = {"throttle_entity": HEATER, "throttle_bit": 0, "pvmaxcomp_entity": PVMAXCOMP, "hp_power_entity": HP_POWER}
+THROTTLE_KEYS = {
+    "switch": ["throttle_enabled", "throttle_signal"],
+    "select": ["throttle_control"],
+    "number": ["throttle_hp_kw", "throttle_wallbox_kw", "throttle_prio_hp"],
+    "sensor": ["throttle_min_power", "throttle_budget", "throttle_hp_power", "throttle_wallbox_power"],
+    "binary_sensor": ["throttle_active", "heater_block_active"],
+}
+
+
+async def _turn(hass: HomeAssistant, entry, key: str, on: bool) -> None:
+    await hass.services.async_call(
+        "switch", "turn_on" if on else "turn_off", {"entity_id": _eid(hass, entry, "switch", key)}, blocking=True
+    )
+    await hass.async_block_till_done()
+
+
+async def test_without_throttle_no_throttle_entities(hass: HomeAssistant, sources) -> None:
+    entry = await _setup(hass)
+    for platform, keys in THROTTLE_KEYS.items():
+        for key in keys:
+            assert _eid(hass, entry, platform, key) is None, key
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_throttle_limits_heat_pump_and_wallbox(hass: HomeAssistant, sources) -> None:
+    entry = await _setup(hass, **THROTTLE)
+    controller = entry.runtime_data
+    for platform, keys in THROTTLE_KEYS.items():
+        for key in keys:
+            assert _eid(hass, entry, platform, key) is not None, key
+    # The switches are operated from the dashboard, not hidden as configuration
+    reg = er.async_get(hass).async_get(_eid(hass, entry, "switch", "throttle_signal"))
+    assert reg.entity_category is None
+
+    await hass.services.async_call(
+        "number", "set_value", {"entity_id": _eid(hass, entry, "number", "throttle_wallbox_kw"), "value": 11},
+        blocking=True,
+    )
+    text_calls = async_mock_service(hass, "text", "set_value")
+    number_calls = async_mock_service(hass, "number", "set_value")
+    await _turn(hass, entry, "observe", False)
+    await _turn(hass, entry, "throttle_enabled", True)
+    hass.states.async_set(GRID, "3000", {"unit_of_measurement": "W"})
+    await _turn(hass, entry, "throttle_signal", True)
+    await controller._async_tick()
+    await hass.async_block_till_done()
+
+    assert hass.states.get(_eid(hass, entry, "sensor", "status")).state == "throttled"
+    assert float(hass.states.get(_eid(hass, entry, "sensor", "throttle_min_power")).state) == 7.56
+    assert float(hass.states.get(_eid(hass, entry, "sensor", "throttle_hp_power")).state) == 7.56
+    assert float(hass.states.get(_eid(hass, entry, "sensor", "throttle_wallbox_power")).state) == 0
+    assert any(c.data == {"entity_id": HEATER, "value": "100000000000000"} for c in text_calls)
+    assert number_calls[-1].data == {"entity_id": PVMAXCOMP, "value": 7.6}
+    hass.states.async_set(HEATER, "100000000000000")
+    hass.states.async_set(PVMAXCOMP, "7.6", {"unit_of_measurement": "kW", "min": 0, "max": 10})
+
+    # Signal gone: heater block lifted, previous compressor limit restored
+    await _turn(hass, entry, "throttle_signal", False)
+    await controller._async_tick()
+    await hass.async_block_till_done()
+    assert text_calls[-1].data == {"entity_id": HEATER, "value": "000000000000000"}
+    assert number_calls[-1].data == {"entity_id": PVMAXCOMP, "value": 2.5}
+    assert float(hass.states.get(_eid(hass, entry, "sensor", "throttle_wallbox_power")).state) == 11
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_throttle_observe_only_logs(hass: HomeAssistant, sources) -> None:
+    text_calls = async_mock_service(hass, "text", "set_value")
+    number_calls = async_mock_service(hass, "number", "set_value")
+    entry = await _setup(hass, **THROTTLE)
+    controller = entry.runtime_data
+    await _turn(hass, entry, "throttle_enabled", True)
+    await _turn(hass, entry, "throttle_signal", True)
+    await controller._async_tick()
+    await hass.async_block_till_done()
+    assert controller.state.throttle_active is True
+    assert [c for c in text_calls if c.data["entity_id"] == HEATER] == []
+    assert number_calls == []
+    assert "würde Drosselung" in controller.last_message or "would" in controller.last_message
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_removing_entry_lifts_heater_block(hass: HomeAssistant, sources) -> None:
+    entry = await _setup(hass, **THROTTLE)
+    controller = entry.runtime_data
+    await _turn(hass, entry, "observe", False)
+    await _turn(hass, entry, "throttle_enabled", True)
+    async_mock_service(hass, "text", "set_value")
+    async_mock_service(hass, "number", "set_value")
+    await _turn(hass, entry, "throttle_signal", True)
+    await controller._async_tick()
+    await hass.async_block_till_done()
+    assert controller.state.throttle_written is True
+    hass.states.async_set(HEATER, "100000000000000")
+    text_calls = async_mock_service(hass, "text", "set_value")
+    number_calls = async_mock_service(hass, "number", "set_value")
+    assert await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+    assert {"entity_id": HEATER, "value": "000000000000000"} in [c.data for c in text_calls]
+    assert number_calls[-1].data == {"entity_id": PVMAXCOMP, "value": 2.5}
+
+
+async def test_config_flow_stores_throttle_bit(hass: HomeAssistant, sources) -> None:
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"name": "WP", **BASE, **THROTTLE, "throttle_bit": 3.0}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["throttle_bit"] == 3
+    assert result["data"]["throttle_entity"] == HEATER
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_unload(result["result"].entry_id)

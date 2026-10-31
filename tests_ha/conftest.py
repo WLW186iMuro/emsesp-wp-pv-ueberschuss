@@ -20,6 +20,9 @@ EVU = "text.boiler_hpin1opt"
 RESERVE = "sensor.battery_backup_reserve"
 HOURLY = "sensor.hourly_price_current"
 AVERAGE = "sensor.average_price_today"
+HEATER = "text.boiler_hpin3opt"
+PVMAXCOMP = "number.boiler_pvmaxcomp"
+HP_POWER = "sensor.boiler_hpcurrpower"
 
 
 @pytest.fixture(autouse=True)
@@ -57,3 +60,6 @@ def sources(hass: HomeAssistant):
     hass.states.async_set(RESERVE, "20", {"unit_of_measurement": "%"})
     hass.states.async_set(HOURLY, "0.2431", {"unit_of_measurement": "EUR/kWh"})
     hass.states.async_set(AVERAGE, "22.1", {"unit_of_measurement": "ct/kWh"})
+    hass.states.async_set(HEATER, "000000000000000")
+    hass.states.async_set(PVMAXCOMP, "2.5", {"unit_of_measurement": "kW", "min": 0, "max": 10})
+    hass.states.async_set(HP_POWER, "2500", {"unit_of_measurement": "W"})

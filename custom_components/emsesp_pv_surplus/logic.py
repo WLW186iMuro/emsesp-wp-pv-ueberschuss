@@ -33,6 +33,7 @@ ST_SENSOR = "sensor_error"
 ST_CHEAP = "price_cheap"
 ST_EXPENSIVE = "price_high"
 ST_PEAK = "peak_block"
+ST_THROTTLE = "throttled"
 STATUS_OPTIONS = [
     ST_OFF,
     ST_MANUAL,
@@ -49,6 +50,7 @@ STATUS_OPTIONS = [
     ST_CHEAP,
     ST_EXPENSIVE,
     ST_PEAK,
+    ST_THROTTLE,
 ]
 
 # Reasons used for start/stop events (logbook, last action).
@@ -68,6 +70,10 @@ R_PEAK = "peak"
 R_PEAK_END = "peak_end"
 R_PEAK_MAX = "peak_max"
 R_PEAK_OFF = "peak_disabled"
+# Reasons for the power limitation under §14a EnWG (throttle mode)
+R_THROTTLE = "throttle"
+R_THROTTLE_END = "throttle_end"
+R_THROTTLE_OFF = "throttle_disabled"
 
 # Why the heat pump is currently in PV mode
 RUN_PV = "pv"
@@ -108,6 +114,25 @@ PEAK_CHECK_KEYS = [
 ]
 # Default position of the EVU block: first character of the input option (1xxxxxxxxxxxxxx).
 EVU_BIT = 0
+# Default position of the heater block used while throttled (e.g. hpin3opt 1xxxxxxxxxxxxxx).
+THROTTLE_BIT = 0
+
+# §14a EnWG: how the grid operator controls the devices
+THROTTLE_DIGITAL = "digital"  # via the energy management system (EEBUS): one common limit
+THROTTLE_ANALOG = "analog"  # direct control (relay): a fixed limit per device
+THROTTLE_CONTROLS = [THROTTLE_DIGITAL, THROTTLE_ANALOG]
+# Controllable devices (steuVE) in default priority order
+THROTTLE_DEVICES = ["hp", "ac", "wallbox", "battery"]
+# Minimum power the grid operator has to leave each device, kW (BNetzA BK6-22-300)
+P14A_MIN_KW = 4.2
+# Heat pumps / air conditioners above this total get 40 % of their power instead of 4.2 kW
+P14A_LARGE_KW = 11.0
+P14A_LARGE_FACTOR = 0.4
+# Simultaneity factor (GZF) by number of devices behind the EMS, 9 and more: 0.45
+P14A_GZF = {2: 0.8, 3: 0.75, 4: 0.7, 5: 0.65, 6: 0.6, 7: 0.55, 8: 0.5}
+P14A_GZF_MIN = 0.45
+# Below this the heat pump counts as idle and its share goes to the next device
+HP_IDLE_W = 100.0
 
 SOC_STOP_DELAY = timedelta(minutes=2)
 SENSOR_FAIL_DELAY = timedelta(minutes=10)
@@ -171,6 +196,17 @@ class Settings:
     peak_max_per_day: float = 2.0
     peak_import_min: float = 10.0
     peak_max_duration_min: float = 120.0
+    throttle_enabled: bool = False
+    throttle_signal: bool = False  # set by the control box / an automation
+    throttle_control: str = THROTTLE_DIGITAL
+    throttle_hp_kw: float = 9.0  # heat pump incl. heater rod, 0 = none
+    throttle_ac_kw: float = 0.0  # split air conditioner, 0 = none
+    throttle_wallbox_kw: float = 0.0  # wallbox, 0 = none
+    throttle_battery_kw: float = 0.0  # battery charging from the grid, 0 = none
+    throttle_prio_hp: float = 1.0
+    throttle_prio_ac: float = 2.0
+    throttle_prio_wallbox: float = 3.0
+    throttle_prio_battery: float = 4.0
 
     def to_dict(self) -> dict:
         out = {}
@@ -203,6 +239,8 @@ class Settings:
             setattr(settings, f.name, value)
         if settings.mode not in MODES:
             settings.mode = MODE_AUTO
+        if settings.throttle_control not in THROTTLE_CONTROLS:
+            settings.throttle_control = THROTTLE_DIGITAL
         return settings
 
 
@@ -227,6 +265,8 @@ class Inputs:
     avg_price_ct: float | None = None  # average price today, cent per kWh
     backup_reserve: float | None = None  # battery backup reserve in %
     evu_bits: str | None = None  # input option used for the EVU block
+    throttle_configured: bool = False  # input option for the heater block is set up
+    throttle_bits: str | None = None  # input option used to block the heater rod
 
 
 _MAJOR = {
@@ -306,6 +346,10 @@ class State:
     peak_last_end: datetime | None = None
     peak_count: int = 0
     evu_written: bool = False  # EVU bit was (to be) set by us and is not confirmed back at 0
+    throttle_active: bool = False
+    throttle_since: datetime | None = None
+    throttle_written: bool = False  # heater block bit set by us, not confirmed back at 0
+    throttle_comp_restore: float | None = None  # compressor limit before the throttling
 
     surplus_since: datetime | None = None
     deficit_since: datetime | None = None
@@ -319,6 +363,7 @@ class State:
     samples: deque = field(default_factory=deque)
     peak_import_since: datetime | None = None
     held: dict = field(default_factory=dict)  # last good price values: key -> (time, value)
+    throttle_adjust: datetime | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -336,6 +381,10 @@ class State:
             "peak_last_end": _dt_to_str(self.peak_last_end),
             "peak_count": self.peak_count,
             "evu_written": self.evu_written,
+            "throttle_active": self.throttle_active,
+            "throttle_since": _dt_to_str(self.throttle_since),
+            "throttle_written": self.throttle_written,
+            "throttle_comp_restore": self.throttle_comp_restore,
         }
 
     @classmethod
@@ -366,6 +415,14 @@ class State:
         state.evu_written = bool(data.get("evu_written", False))
         if state.peak_active and state.peak_since is None:
             state.peak_active = False
+        state.throttle_active = bool(data.get("throttle_active", False))
+        state.throttle_since = _str_to_dt(data.get("throttle_since"))
+        state.throttle_written = bool(data.get("throttle_written", False))
+        restore = data.get("throttle_comp_restore")
+        try:
+            state.throttle_comp_restore = float(restore) if restore is not None else None
+        except (TypeError, ValueError):
+            state.throttle_comp_restore = None
         return state
 
 
@@ -417,6 +474,23 @@ class Result:
     evu_desired: bool = False
     evu_enforce: bool = False
     evu_bits_target: str | None = None
+    throttle_active: bool = False
+    throttle_started: bool = False
+    throttle_stopped: bool = False
+    throttle_reason: str | None = None
+    throttle_since: datetime | None = None
+    throttle_devices: int = 0  # number of controllable devices
+    throttle_min_kw: float | None = None  # power the grid operator guarantees (§14a)
+    throttle_bonus_kw: float | None = None  # own PV / battery power on top
+    throttle_budget_kw: float | None = None
+    throttle_alloc_kw: dict[str, float] = field(default_factory=dict)  # max. power per device
+    throttle_hp_control: bool = False  # heater block and compressor limit are applied
+    throttle_heater_active: bool | None = None
+    throttle_heater_desired: bool = False
+    throttle_heater_enforce: bool = False
+    throttle_bits_target: str | None = None
+    throttle_comp_kw: float | None = None
+    write_throttle_comp: bool = False
 
 
 def battery_missing_kwh(soc: float | None, capacity_kwh: float) -> float | None:
@@ -474,6 +548,60 @@ def valid_bits(bits: str | None, index: int) -> bool:
     return bool(bits) and bool(_BITS.match(bits)) and 0 <= index < len(bits)
 
 
+def device_powers(settings: Settings) -> dict[str, float]:
+    """Maximum input power per controllable device in kW (0 = not connected)."""
+    return {key: max(0.0, float(getattr(settings, f"throttle_{key}_kw"))) for key in THROTTLE_DEVICES}
+
+
+def gzf(devices: int) -> float:
+    """Simultaneity factor for the number of controllable devices."""
+    return P14A_GZF.get(devices, P14A_GZF_MIN if devices > 8 else 1.0)
+
+
+def direct_limit_kw(key: str, power_kw: float) -> float:
+    """Limit of one device under direct control (relay)."""
+    if power_kw <= 0:
+        return 0.0
+    if key in ("hp", "ac") and power_kw > P14A_LARGE_KW:
+        return P14A_LARGE_FACTOR * power_kw
+    return min(power_kw, P14A_MIN_KW)
+
+
+def ems_min_kw(powers: dict[str, float]) -> float:
+    """Common minimum power of all devices behind the EMS (digital control).
+
+    Pmin = 4.2 kW + (n - 1) * GZF * 4.2 kW, or with heat pumps / air conditioners above 11 kW
+    Pmin = max(0.4 * P_hp; 0.4 * P_ac) + (n - 1) * GZF * 4.2 kW
+    """
+    n = sum(1 for p in powers.values() if p > 0)
+    if n == 0:
+        return 0.0
+    hp, ac = powers.get("hp", 0.0), powers.get("ac", 0.0)
+    if hp <= P14A_LARGE_KW and ac <= P14A_LARGE_KW:
+        base = P14A_MIN_KW
+    else:
+        base = max(P14A_LARGE_FACTOR * hp, P14A_LARGE_FACTOR * ac)
+    return base + (n - 1) * gzf(n) * P14A_MIN_KW
+
+
+def priority_order(settings: Settings) -> list[str]:
+    """Devices by priority (1 = first); ties keep the default order."""
+    return sorted(
+        THROTTLE_DEVICES,
+        key=lambda key: (getattr(settings, f"throttle_prio_{key}"), THROTTLE_DEVICES.index(key)),
+    )
+
+
+def distribute(order: list[str], demand: dict[str, float], budget_kw: float) -> dict[str, float]:
+    """Hand out the budget by priority; every device gets at most its demand."""
+    rest = max(0.0, budget_kw)
+    out: dict[str, float] = {}
+    for key in order:
+        out[key] = min(demand.get(key, 0.0), rest)
+        rest -= out[key]
+    return out
+
+
 def _held(state: State, key: str, value: float | None, now: datetime) -> float | None:
     """Value, or the last good one for up to PRICE_GRACE (price sensors drop out at the hour)."""
     if value is not None:
@@ -486,7 +614,12 @@ def _held(state: State, key: str, value: float | None, now: datetime) -> float |
 
 
 def evaluate(
-    settings: Settings, state: State, inp: Inputs, bit_index: int = 0, evu_bit: int = EVU_BIT
+    settings: Settings,
+    state: State,
+    inp: Inputs,
+    bit_index: int = 0,
+    evu_bit: int = EVU_BIT,
+    throttle_bit: int = THROTTLE_BIT,
 ) -> Result:
     """Run one control step. Mutates ``state``."""
     now = inp.now
@@ -662,6 +795,23 @@ def evaluate(
     if state.peak_active and not settings.observe:
         state.evu_written = True
 
+    # Power limitation under §14a EnWG (throttle mode). Works in every mode: it is an
+    # obligation towards the grid operator. While the EVU block is on the heat pump is
+    # left alone (it is blocked anyway) and its share goes to the other devices.
+    throttle_on = inp.throttle_configured and settings.throttle_enabled and settings.throttle_signal
+    if state.throttle_active and not throttle_on:
+        state.throttle_active = False
+        state.throttle_since = None
+        result.throttle_stopped = True
+        result.throttle_reason = R_THROTTLE_END if settings.throttle_enabled else R_THROTTLE_OFF
+    elif throttle_on and not state.throttle_active:
+        state.throttle_active = True
+        state.throttle_since = now
+        state.throttle_adjust = None
+        result.throttle_started = True
+        result.throttle_reason = R_THROTTLE
+    hp_control = state.throttle_active and not state.peak_active
+
     def start(reason: str, count: bool, kind: str) -> None:
         state.requested = True
         state.run_kind = kind
@@ -687,6 +837,9 @@ def evaluate(
     if settings.mode == MODE_OFF:
         if state.requested:
             stop(R_MODE_OFF)
+    elif state.throttle_active:
+        if state.requested:
+            stop(R_THROTTLE)  # no PV mode while the grid operator limits the power
     elif settings.mode == MODE_MANUAL:
         if not state.requested:
             start(R_MANUAL, count=False, kind=RUN_MANUAL)
@@ -733,10 +886,12 @@ def evaluate(
         lock_until = now + timedelta(minutes=settings.lock_min)
 
     # Status
-    if settings.mode == MODE_OFF:
-        status = ST_OFF
-    elif state.peak_active:
+    if state.peak_active:
         status = ST_PEAK
+    elif state.throttle_active:
+        status = ST_THROTTLE
+    elif settings.mode == MODE_OFF:
+        status = ST_OFF
     elif state.requested:
         if settings.mode == MODE_MANUAL:
             status = ST_MANUAL
@@ -791,6 +946,80 @@ def evaluate(
         if not state.peak_active and not result.evu_active:
             state.evu_written = False
             result.evu_enforce = False
+
+    # Throttle mode: power per device
+    powers = device_powers(settings)
+    result.throttle_devices = sum(1 for p in powers.values() if p > 0)
+    if settings.throttle_control == THROTTLE_ANALOG:
+        limits = {key: direct_limit_kw(key, p) for key, p in powers.items()}
+        result.throttle_min_kw = round(sum(limits.values()), 2)
+    else:
+        limits = None
+        result.throttle_min_kw = round(ems_min_kw(powers), 2)
+    if state.throttle_active:
+        if limits is not None:
+            # Direct control: fixed limit per device, no sharing and no own power on top
+            alloc = dict(limits)
+            if state.peak_active:
+                alloc["hp"] = 0.0
+            result.throttle_budget_kw = result.throttle_min_kw
+        else:
+            # The limit only applies to power from the grid: own PV and battery power come on top
+            bonus = 0.0
+            if sensors_ok:
+                bonus = (max(0.0, -inp.grid_w) + abs(inp.battery_w)) / 1000.0
+            budget = result.throttle_min_kw + bonus
+            result.throttle_bonus_kw = round(bonus, 2)
+            result.throttle_budget_kw = round(budget, 2)
+            order = priority_order(settings)
+            reserved = distribute(order, powers, budget)
+            # A heat pump that is idle (or blocked) passes its share on. It keeps its own
+            # limit so it can start; the others are cut back at the next evaluation.
+            demand = dict(powers)
+            hp_idle = inp.hp_power_w is not None and inp.hp_power_w < HP_IDLE_W
+            if state.peak_active or hp_idle:
+                demand["hp"] = 0.0
+            alloc = distribute(order, demand, budget)
+            alloc["hp"] = 0.0 if state.peak_active else reserved["hp"]
+        result.throttle_alloc_kw = {key: round(alloc.get(key, 0.0), 2) for key in THROTTLE_DEVICES}
+    else:
+        result.throttle_alloc_kw = {key: round(p, 2) for key, p in powers.items()}
+
+    # Heater block: set while throttled; reset only what we set ourselves
+    throttle_ok = valid_bits(inp.throttle_bits, throttle_bit)
+    if hp_control and not settings.observe:
+        state.throttle_written = True
+    result.throttle_hp_control = hp_control
+    result.throttle_heater_desired = hp_control
+    # While the EVU block is on, nothing at the heat pump is touched
+    result.throttle_heater_enforce = hp_control or (state.throttle_written and not state.throttle_active)
+    if throttle_ok:
+        result.throttle_heater_active = inp.throttle_bits[throttle_bit] == "1"
+        result.throttle_bits_target = set_bit(inp.throttle_bits, throttle_bit, hp_control)
+        if not state.throttle_active and not result.throttle_heater_active:
+            state.throttle_written = False
+            result.throttle_heater_enforce = False
+
+    # Compressor limit while throttled; the previous value is restored afterwards
+    if hp_control and inp.pvmaxcomp_kw is not None:
+        target = round(max(0.0, result.throttle_alloc_kw["hp"]), 1)
+        result.throttle_comp_kw = target
+        if not settings.observe and state.throttle_comp_restore is None:
+            state.throttle_comp_restore = inp.pvmaxcomp_kw
+        # Lower at once (grid operator), raise again only every adjustment interval
+        due = state.throttle_adjust is None or now - state.throttle_adjust >= timedelta(
+            minutes=max(settings.comp_interval_min, 1.0)
+        )
+        lower = target < inp.pvmaxcomp_kw - 0.05
+        higher = target > inp.pvmaxcomp_kw + 0.05
+        if lower or (higher and due):
+            state.throttle_adjust = now
+            result.write_throttle_comp = True
+    elif not state.throttle_active and state.throttle_comp_restore is not None:
+        if inp.pvmaxcomp_kw is not None:
+            result.throttle_comp_kw = round(state.throttle_comp_restore, 1)
+            result.write_throttle_comp = abs(result.throttle_comp_kw - inp.pvmaxcomp_kw) >= 0.05
+            state.throttle_comp_restore = None
 
     # Compressor limit
     cheap_run = state.requested and state.run_kind == RUN_CHEAP and settings.mode == MODE_AUTO
@@ -859,6 +1088,8 @@ def evaluate(
         peak_lock_until = now + timedelta(minutes=settings.peak_lock_min)
     result.peak_lock_until = peak_lock_until if peak_lock_until and now < peak_lock_until else None
     result.peak_import_since = state.peak_import_since
+    result.throttle_active = state.throttle_active
+    result.throttle_since = state.throttle_since
 
     state.last_eval = now
     return result

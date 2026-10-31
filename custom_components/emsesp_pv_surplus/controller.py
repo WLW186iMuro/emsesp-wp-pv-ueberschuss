@@ -39,6 +39,8 @@ from .const import (
     CONF_SIGNAL_BIT,
     CONF_SIGNAL_ENTITY,
     CONF_SOC_ENTITY,
+    CONF_THROTTLE_BIT,
+    CONF_THROTTLE_ENTITY,
     DEFAULT_NAME,
     DOMAIN,
     GRID_EXPORT_POSITIVE,
@@ -66,6 +68,10 @@ from .logic import (
 _LOGGER = logging.getLogger(__name__)
 STORAGE_VERSION = 1
 
+
+def _kw(value: float | None) -> str:
+    return "–" if value is None else f"{round(value, 2):g}"
+
 _TEXT = {
     "de": {
         "observe": "[Beobachtung] ",
@@ -84,6 +90,13 @@ _TEXT = {
         "would_peak_start": "würde EVU-Sperre setzen ({reason})",
         "would_peak_stop": "würde EVU-Sperre aufheben ({reason})",
         "evu": "EVU-Signal {old} → {new}",
+        "throttle_start": "Drosselung nach §14a gestartet: {budget} kW (WP {hp} kW, Klima {ac} kW, Wallbox {wallbox} kW, Speicher {battery} kW)",
+        "throttle_stop": "Drosselung nach §14a beendet ({reason})",
+        "would_throttle_start": "würde Drosselung nach §14a starten: {budget} kW (WP {hp} kW, Klima {ac} kW, Wallbox {wallbox} kW, Speicher {battery} kW)",
+        "would_throttle_stop": "würde Drosselung nach §14a beenden ({reason})",
+        "heater": "Heizstab-Sperre {old} → {new}",
+        "throttle_comp": "Drosselung: max. Kompressorleistung {old} → {new} kW",
+        "would_throttle_comp": "würde max. Kompressorleistung {old} → {new} kW setzen (Drosselung)",
         "on": "an",
         "off": "aus",
         "reasons": {
@@ -101,6 +114,9 @@ _TEXT = {
             "peak_end": "Strompreis wieder unter Tagesdurchschnitt",
             "peak_max": "maximale Sperrdauer erreicht",
             "peak_disabled": "Preissteuerung aus oder Betriebsart nicht Automatik",
+            "throttle": "Steuersignal nach §14a",
+            "throttle_end": "Steuersignal aufgehoben",
+            "throttle_disabled": "Throttle Mode ausgeschaltet",
         },
     },
     "en": {
@@ -120,6 +136,13 @@ _TEXT = {
         "would_peak_start": "would set EVU block ({reason})",
         "would_peak_stop": "would lift EVU block ({reason})",
         "evu": "EVU signal {old} → {new}",
+        "throttle_start": "§14a throttling started: {budget} kW (heat pump {hp} kW, air conditioner {ac} kW, wallbox {wallbox} kW, battery {battery} kW)",
+        "throttle_stop": "§14a throttling ended ({reason})",
+        "would_throttle_start": "would start §14a throttling: {budget} kW (heat pump {hp} kW, air conditioner {ac} kW, wallbox {wallbox} kW, battery {battery} kW)",
+        "would_throttle_stop": "would end §14a throttling ({reason})",
+        "heater": "Heater block {old} → {new}",
+        "throttle_comp": "Throttling: max. compressor power {old} → {new} kW",
+        "would_throttle_comp": "would set max. compressor power {old} → {new} kW (throttling)",
         "on": "on",
         "off": "off",
         "reasons": {
@@ -137,6 +160,9 @@ _TEXT = {
             "peak_end": "price back below the daily average",
             "peak_max": "maximum block duration reached",
             "peak_disabled": "price control off or mode not automatic",
+            "throttle": "§14a control signal",
+            "throttle_end": "control signal lifted",
+            "throttle_disabled": "throttle mode switched off",
         },
     },
 }
@@ -152,6 +178,7 @@ class PvSurplusController:
         self.name: str = self.cfg.get(CONF_NAME) or entry.title or DEFAULT_NAME
         self.bit_index: int = int(self.cfg.get(CONF_SIGNAL_BIT) or 0)
         self.evu_bit: int = int(self.cfg.get(CONF_EVU_BIT) or 0)
+        self.throttle_bit: int = int(self.cfg.get(CONF_THROTTLE_BIT) or 0)
         self.settings = Settings()
         self.state = State()
         self.inputs: Inputs | None = None
@@ -166,6 +193,8 @@ class PvSurplusController:
         self._last_signal_target: str | None = None
         self._last_evu_write: datetime | None = None
         self._last_evu_target: str | None = None
+        self._last_heater_write: datetime | None = None
+        self._last_heater_target: str | None = None
         self._saved_snapshot: dict | None = None
         # ok | unavailable | unit_unknown | None (no price sensor)
         self.price_state: str | None = None
@@ -198,6 +227,11 @@ class PvSurplusController:
     def has_price_settings(self) -> bool:
         """Price control switch and expensive threshold are used by both price features."""
         return self.has_price or self.has_peak
+
+    @property
+    def has_throttle(self) -> bool:
+        """Throttle mode (§14a EnWG): needs the input option for the heater block."""
+        return bool(self.cfg.get(CONF_THROTTLE_ENTITY))
 
     @property
     def price_unit_mode(self) -> str:
@@ -323,6 +357,7 @@ class PvSurplusController:
             pvmax = pvmax / 1000.0
         signal = self._state_obj(CONF_SIGNAL_ENTITY)
         evu = self._state_obj(CONF_EVU_ENTITY) if self.has_peak else None
+        heater = self._state_obj(CONF_THROTTLE_ENTITY) if self.has_throttle else None
         try:
             sun_up = is_up(self.hass)
         except Exception:  # noqa: BLE001 - location not configured
@@ -345,6 +380,8 @@ class PvSurplusController:
             avg_price_ct=self._peak_price_ct(CONF_AVG_PRICE_ENTITY),
             backup_reserve=self._number(CONF_BACKUP_RESERVE_ENTITY)[0] if self.has_peak else None,
             evu_bits=evu.state if evu else None,
+            throttle_configured=self.has_throttle,
+            throttle_bits=heater.state if heater else None,
         )
 
     # ------------------------------------------------------------------- loop
@@ -355,7 +392,7 @@ class PvSurplusController:
         try:
             now = dt_util.now()
             inp = self._read_inputs(now)
-            res = evaluate(self.settings, self.state, inp, self.bit_index, self.evu_bit)
+            res = evaluate(self.settings, self.state, inp, self.bit_index, self.evu_bit, self.throttle_bit)
             self.inputs = inp
             self.result = res
             await self._async_apply(inp, res, now)
@@ -403,6 +440,8 @@ class PvSurplusController:
             )
             if not recently and await self._set_evu(res.evu_bits_target, now):
                 await self._log(t["evu"].format(old=inp.evu_bits, new=res.evu_bits_target))
+
+        await self._apply_throttle(inp, res, now)
 
         cheap = res.run_kind == RUN_CHEAP
         if observe:
@@ -464,6 +503,76 @@ class PvSurplusController:
                 )
             except HomeAssistantError as err:
                 _LOGGER.warning("Could not set %s: %s", entity_id, err)
+
+    async def _apply_throttle(self, inp: Inputs, res: Result, now: datetime) -> None:
+        """§14a throttling: heater block and compressor limit at the heat pump."""
+        observe = self.settings.observe
+        t = self._t
+        reason = t["reasons"].get(res.throttle_reason or "", res.throttle_reason or "")
+        if res.throttle_started:
+            alloc = res.throttle_alloc_kw
+            text = t["would_throttle_start" if observe else "throttle_start"].format(
+                budget=_kw(res.throttle_budget_kw), **{key: _kw(alloc.get(key)) for key in alloc}
+            )
+            await self._log(t["observe"] + text if observe else text)
+        if res.throttle_stopped:
+            text = t["would_throttle_stop" if observe else "throttle_stop"].format(reason=reason)
+            await self._log(t["observe"] + text if observe else text)
+
+        # Heater block: set it while throttled; lifting what we set also happens in observe mode
+        if (
+            res.throttle_heater_enforce
+            and res.throttle_bits_target is not None
+            and res.throttle_heater_active is not None
+            and res.throttle_heater_active != res.throttle_heater_desired
+            and (not observe or not res.throttle_heater_desired)
+        ):
+            recently = (
+                self._last_heater_write is not None
+                and self._last_heater_target == res.throttle_bits_target
+                and now - self._last_heater_write < SIGNAL_REWRITE_INTERVAL
+            )
+            if not recently:
+                self._last_heater_write = now
+                self._last_heater_target = res.throttle_bits_target
+                if await self._set_text(CONF_THROTTLE_ENTITY, res.throttle_bits_target):
+                    await self._log(t["heater"].format(old=inp.throttle_bits, new=res.throttle_bits_target))
+
+        if res.write_throttle_comp and res.throttle_comp_kw is not None:
+            if observe:
+                await self._log(
+                    t["observe"] + t["would_throttle_comp"].format(old=inp.pvmaxcomp_kw, new=res.throttle_comp_kw)
+                )
+                return
+            entity_id = self.cfg.get(CONF_PVMAXCOMP_ENTITY)
+            value = res.throttle_comp_kw
+            # Stay within the range EMS-ESP accepts
+            st = self.hass.states.get(entity_id) if entity_id else None
+            if st is not None:
+                try:
+                    lo = float(st.attributes.get("min", value))
+                    hi = float(st.attributes.get("max", value))
+                    value = min(max(value, lo), hi)
+                except (TypeError, ValueError):
+                    pass
+            try:
+                await self.hass.services.async_call(
+                    "number", "set_value", {"entity_id": entity_id, "value": value}, blocking=True
+                )
+                await self._log(t["throttle_comp"].format(old=inp.pvmaxcomp_kw, new=value))
+            except HomeAssistantError as err:
+                _LOGGER.warning("Could not set %s: %s", entity_id, err)
+
+    async def _set_text(self, key: str, value: str) -> bool:
+        entity_id = self.cfg.get(key)
+        try:
+            await self.hass.services.async_call(
+                "text", "set_value", {"entity_id": entity_id, "value": value}, blocking=True
+            )
+        except HomeAssistantError as err:
+            _LOGGER.warning("Could not write %s to %s: %s", value, entity_id, err)
+            return False
+        return True
 
     async def _set_signal(self, value: str, now: datetime) -> bool:
         entity_id = self.cfg.get(CONF_SIGNAL_ENTITY)
