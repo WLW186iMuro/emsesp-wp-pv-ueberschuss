@@ -409,9 +409,9 @@ async def test_buttons_reset_evu_lock_and_counter(hass: HomeAssistant, sources) 
 
 THROTTLE = {"throttle_entity": HEATER, "throttle_bit": 0, "pvmaxcomp_entity": PVMAXCOMP, "hp_power_entity": HP_POWER}
 THROTTLE_KEYS = {
-    "switch": ["throttle_enabled", "throttle_signal"],
+    "switch": ["throttle_enabled", "throttle_signal", "throttle_pass_idle"],
     "select": ["throttle_control"],
-    "number": ["throttle_hp_kw", "throttle_wallbox_kw", "throttle_prio_hp"],
+    "number": ["throttle_limit_kw", "throttle_hp_kw", "throttle_wallbox_kw", "throttle_prio_hp"],
     "sensor": ["throttle_min_power", "throttle_budget", "throttle_hp_power", "throttle_wallbox_power"],
     "binary_sensor": ["throttle_active", "heater_block_active"],
 }
@@ -508,6 +508,19 @@ async def test_removing_entry_lifts_heater_block(hass: HomeAssistant, sources) -
     await hass.async_block_till_done()
     assert {"entity_id": HEATER, "value": "000000000000000"} in [c.data for c in text_calls]
     assert number_calls[-1].data == {"entity_id": PVMAXCOMP, "value": 2.5}
+
+
+async def test_removing_entry_resets_blocks_not_set_by_us(hass: HomeAssistant, sources) -> None:
+    """Removing the entry hands both inputs back in normal mode, whoever set them."""
+    entry = await _setup(hass, **{**PEAK, **THROTTLE})
+    hass.states.async_set(EVU, "100000000001010")
+    hass.states.async_set(HEATER, "100000000000000")
+    text_calls = async_mock_service(hass, "text", "set_value")
+    assert await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+    data = [c.data for c in text_calls]
+    assert {"entity_id": EVU, "value": "000000000001010"} in data
+    assert {"entity_id": HEATER, "value": "000000000000000"} in data
 
 
 async def test_config_flow_stores_throttle_bit(hass: HomeAssistant, sources) -> None:

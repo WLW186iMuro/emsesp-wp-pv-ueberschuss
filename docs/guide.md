@@ -32,6 +32,13 @@ Buderus, Bosch and Junkers heat pumps have an input for PV / SG Ready. When it i
 | Normal operation | `000000100000` |
 | PV mode | `100000100000` |
 
+The optional features use two more inputs of the heat pump, which EMS-ESP exposes the same way as bit patterns:
+
+| Input | Entity (example) | Function |
+|---|---|---|
+| Input 1 | `text.boiler_hpin1opt` | **EVU block** – peak mode (section 7.1) |
+| e.g. input 3 | `text.boiler_hpin3opt` | **Heater rod block** – throttle mode under §14a (section 8) |
+
 The integration sets the first character (bit 0) to `1` when there is enough solar surplus and back to `0` when there isn't. It takes care of three things:
 
 - **The battery comes first.** Solar power only goes to the heat pump once the home battery is charged enough, or when the forecast says it will still be full today.
@@ -248,24 +255,26 @@ Configure that input (e.g. input 3 of a Buderus heat pump) in the heat pump to *
 
 - switch **Throttle mode** – enables the function (also on the card),
 - switch **Throttle: control signal** – your control box or an automation turns it *on* while the grid operator throttles,
-- settings group **Throttle mode (§14a)**: control (digital/analogue), max. input power per device in kW (0 = not present) and the priority per device (1 = supplied first).
+- number **Throttle: power limit from the grid operator** (kW) – digital control only: the limit the control box sends; an automation fills it in,
+- settings group **Throttle mode (§14a)**: control (analogue/digital), max. input power per device in kW (0 = not present) and the priority per device (1 = supplied first).
 
-**What the grid operator guarantees** (Bundesnetzagentur decision BK6-22-300):
+**Which limit applies** (Bundesnetzagentur decision BK6-22-300, control via an EMS):
 
-| Control | Minimum power |
-|---|---|
-| **Digital via the EMS (EEBUS)** – one common limit for all devices | `4.2 kW + (n − 1) × GZF × 4.2 kW`; with a heat pump or air conditioner above 11 kW: `max(0.4 × P_hp; 0.4 × P_ac) + (n − 1) × GZF × 4.2 kW` |
-| **Analogue, direct (relay)** – fixed limit per device | wallbox and battery 4.2 kW each; heat pump and air conditioner 4.2 kW each, above 11 kW 40 % of their power |
+| Control | What the control box sends | Limit for all devices together |
+|---|---|---|
+| **Analogue (relay)** – default | only *on/off* via a relay contact | the integration works out the **minimum power** itself: `4.2 kW + (n − 1) × GZF × 4.2 kW`; with a heat pump or air conditioner above 11 kW: `max(0.4 × P_hp; 0.4 × P_ac) + (n − 1) × GZF × 4.2 kW` |
+| **Digital (EEBUS)** | a **power value** in kW | the value in *Throttle: power limit from the grid operator*; if it is 0, the minimum power applies as with analogue |
 
-`n` = number of devices with power > 0, simultaneity factor GZF: 2 → 0.8 · 3 → 0.75 · 4 → 0.7 · 5 → 0.65 · 6 → 0.6 · 7 → 0.55 · 8 → 0.5 · 9 and more → 0.45. Example: heat pump 9 kW, air conditioner 3 kW, wallbox 11 kW → digital `4.2 + 2 × 0.75 × 4.2 = 10.5 kW`.
+`n` = number of devices with power > 0, simultaneity factor GZF: 2 → 0.8 · 3 → 0.75 · 4 → 0.7 · 5 → 0.65 · 6 → 0.6 · 7 → 0.55 · 8 → 0.5 · 9 and more → 0.45. Example: heat pump 9 kW, air conditioner 3 kW, wallbox 11 kW → `4.2 + 2 × 0.75 × 4.2 = 10.5 kW`.
 
-**Distribution (digital):**
+Example automation for digital: if your EEBUS connection provides the limit as a sensor, write it to *Throttle: power limit from the grid operator* with `number.set_value` on every change, and turn *Throttle: control signal* on while the limitation is active.
 
-- The limit only applies to power from the grid. What the PV system is exporting and what the battery is charging or delivering comes on top as **own generation**.
+**Distribution (analogue and digital):**
+
+- The limit only applies to power from the grid. **Own generation** comes on top: what the PV system is exporting, what the battery is discharging and the part of the battery charging that comes from PV. Charging the battery from the grid does not count.
 - Power is handed out by **priority**; each device gets at most its max. input power.
-- If the heat pump is not running (compressor < 100 W), its share goes to the next device. It keeps its own limit so it can start at any time; the other devices are then cut back at the next evaluation (15 s).
-
-With **analogue control** every device gets its fixed limit, without sharing and without own generation.
+- The heat pump keeps its share even while it is not running. This way the sum of all limits is never higher than the allowed power (strict §14a).
+- Optional: with the switch **Pass on share of idle heat pump**, its share goes to the next device while the compressor is below 300 W. It keeps its own limit so it can start at any time; the other devices are then cut back at the next evaluation (15 s). Until then the grid draw can briefly be above the limit.
 
 **What happens at the heat pump:**
 
@@ -385,6 +394,7 @@ All settings are entities too (number / switch / select / time). You can change 
 | `switch.<name>_price_control` | price control on/off (only with a price sensor) |
 | `switch.<name>_throttle_mode` | throttle mode on/off (only with the throttle input option) |
 | `switch.<name>_throttle_control_signal` | §14a control signal, set by the control box / an automation |
+| `number.<name>_throttle_power_limit_from_the_grid_operator` | power limit from the control box in kW (digital only), set by an automation |
 | `binary_sensor.<name>_throttling_active` | throttling is on |
 | `sensor.<name>_throttle_max_power_wallbox` | allowed wallbox power in kW (also `…_air_conditioner`, `…_heat_pump`, `…_max_charging_power_battery`) |
 
@@ -407,6 +417,6 @@ Reload the page once with Ctrl+F5. With dashboards in YAML mode, add the resourc
 Turn one of them off, or they will keep switching each other.
 
 **What happens when I remove the integration?**
-If it had set the bit, it resets it to normal operation.
+If it had set the PV bit, it resets it to normal operation. The EVU block bit (peak mode) and the heater block bit (throttle mode) are always reset to `0`, and *PV max. compressor power* gets back its value from before the throttling.
 
 **Report a bug:** [open an issue](https://github.com/WLW186iMuro/emsesp-wp-pv-ueberschuss/issues) and attach the diagnostics (*Integration → ⋮ → Download diagnostics*).

@@ -5,8 +5,9 @@
 - **Neu: Throttle Mode – Drosselung nach §14a EnWG (optional).**
   - Neue Quell-Entität unter *Konfigurieren*: EMS-ESP Eingangs-Option, die den Heizstab sperrt (z. B. `text.boiler_hpin3opt`), mit Bit-Position (Standard 0).
   - Schalter *Throttle Mode* (Freigabe, auch auf der Karte) und *Drosselung: Steuersignal* (setzt die Steuerbox bzw. eine Automation).
-  - Mindestleistung nach BNetzA BK6-22-300: digital über das EMS `4,2 kW + (n − 1) × GZF × 4,2 kW` (über 11 kW: 40 % der WP-/Klima-Leistung) oder analog 4,2 kW je Gerät.
-  - Verteilung nach einstellbarer Priorität auf Wärmepumpe, Klimagerät, Wallbox und Speicher (max. Eingangsleistung je Gerät, 0 = nicht vorhanden); eigener PV- und Akkustrom kommt bei digitaler Steuerung dazu; eine ruhende Wärmepumpe gibt ihren Anteil weiter.
+  - Steuerung analog (Relais, nur an/aus): Grenze = Mindestleistung nach BNetzA BK6-22-300, `4,2 kW + (n − 1) × GZF × 4,2 kW` (über 11 kW: 40 % der WP-/Klima-Leistung). Digital (EEBUS): Grenze = gesendeter Leistungswert in der Zahl *Drosselung: Leistungsvorgabe Netzbetreiber* (0 = Mindestleistung).
+  - Verteilung nach einstellbarer Priorität auf Wärmepumpe, Klimagerät, Wallbox und Speicher (max. Eingangsleistung je Gerät, 0 = nicht vorhanden); eigener PV- und Akkustrom kommt dazu (Akku-Ladung aus dem Netz zählt nicht). Optional gibt eine ruhende Wärmepumpe (Kompressor < 300 W) ihren Anteil weiter, Standard: aus.
+  - Beim Entfernen der Integration werden die Bits der EVU-Sperre und der Heizstab-Sperre immer auf `0` zurückgesetzt.
   - Wärmepumpe: Heizstab-Sperre und `pvmaxcomp` auf ihren Anteil, danach alter Wert zurück. PV-Betrieb wird beendet; bei aktiver EVU-Sperre bleibt die Wärmepumpe unverändert.
   - Erlaubte Leistung je Gerät als Sensor (kW), neuer Status „Throttle Mode – Drosselung nach §14a“, eigener Abschnitt und Kachel auf der Karte. Wirkt in jeder Betriebsart; im Beobachtungsmodus nur Logbuch-Einträge.
 - **Neu: Peak-Modus (optional)** – EVU-Sperre der Wärmepumpe bei hohem Strompreis und leerem Akku.

@@ -107,8 +107,8 @@ FIELDS = {
 }
 
 THROTTLE_CONTROLS = {
-    "digital": ("Digital (EMS/EEBUS)", "Digital (EMS/EEBUS)"),
     "analog": ("Analog (Relais)", "Analogue (relay)"),
+    "digital": ("Digital (EEBUS)", "Digital (EEBUS)"),
 }
 
 SELECTORS = {
@@ -201,6 +201,7 @@ ENTITIES = {
         "peak_max_duration_min": ("Peak: Max. Dauer der EVU-Sperre", "Peak: max. EVU block duration"),
         "peak_lock_min": ("Peak: Sperrzeit nach der letzten EVU-Sperre", "Peak: lock time after the last EVU lock activation"),
         "peak_max_per_day": ("Peak: Max. Aktivierungen pro Tag", "Peak: max. activations per day"),
+        "throttle_limit_kw": ("Drosselung: Leistungsvorgabe Netzbetreiber", "Throttle: power limit from the grid operator"),
         "throttle_hp_kw": ("Drosselung: Max. Eingangsleistung Wärmepumpe (inkl. Heizstab)", "Throttle: max. input power heat pump (incl. heater rod)"),
         "throttle_ac_kw": ("Drosselung: Max. Eingangsleistung Klimagerät", "Throttle: max. input power air conditioner"),
         "throttle_wallbox_kw": ("Drosselung: Max. Eingangsleistung Wallbox", "Throttle: max. input power wallbox"),
@@ -218,6 +219,7 @@ ENTITIES = {
         "price_stop_expensive": ("Bei teurem Strom PV-Betrieb beenden", "Stop PV mode on expensive electricity"),
         "throttle_enabled": ("Throttle Mode", "Throttle mode"),
         "throttle_signal": ("Drosselung: Steuersignal", "Throttle: control signal"),
+        "throttle_pass_idle": ("Drosselung: Anteil ruhender Wärmepumpe weitergeben", "Throttle: pass on share of idle heat pump"),
     },
     "select": {
         "mode": ("Betriebsart", "Mode"),

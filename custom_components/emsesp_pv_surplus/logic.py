@@ -118,9 +118,9 @@ EVU_BIT = 0
 THROTTLE_BIT = 0
 
 # §14a EnWG: how the grid operator controls the devices
-THROTTLE_DIGITAL = "digital"  # via the energy management system (EEBUS): one common limit
-THROTTLE_ANALOG = "analog"  # direct control (relay): a fixed limit per device
-THROTTLE_CONTROLS = [THROTTLE_DIGITAL, THROTTLE_ANALOG]
+THROTTLE_ANALOG = "analog"  # relay at the control box: on/off only, the EMS works out Pmin itself
+THROTTLE_DIGITAL = "digital"  # EEBUS: the control box sends the power limit for the EMS
+THROTTLE_CONTROLS = [THROTTLE_ANALOG, THROTTLE_DIGITAL]
 # Controllable devices (steuVE) in default priority order
 THROTTLE_DEVICES = ["hp", "ac", "wallbox", "battery"]
 # Minimum power the grid operator has to leave each device, kW (BNetzA BK6-22-300)
@@ -132,7 +132,7 @@ P14A_LARGE_FACTOR = 0.4
 P14A_GZF = {2: 0.8, 3: 0.75, 4: 0.7, 5: 0.65, 6: 0.6, 7: 0.55, 8: 0.5}
 P14A_GZF_MIN = 0.45
 # Below this the heat pump counts as idle and its share goes to the next device
-HP_IDLE_W = 100.0
+HP_IDLE_W = 300.0
 
 SOC_STOP_DELAY = timedelta(minutes=2)
 SENSOR_FAIL_DELAY = timedelta(minutes=10)
@@ -198,11 +198,13 @@ class Settings:
     peak_max_duration_min: float = 120.0
     throttle_enabled: bool = False
     throttle_signal: bool = False  # set by the control box / an automation
-    throttle_control: str = THROTTLE_DIGITAL
+    throttle_control: str = THROTTLE_ANALOG
+    throttle_limit_kw: float = 0.0  # power limit sent by the control box (digital), 0 = none
     throttle_hp_kw: float = 9.0  # heat pump incl. heater rod, 0 = none
     throttle_ac_kw: float = 0.0  # split air conditioner, 0 = none
     throttle_wallbox_kw: float = 0.0  # wallbox, 0 = none
     throttle_battery_kw: float = 0.0  # battery charging from the grid, 0 = none
+    throttle_pass_idle: bool = False  # an idle heat pump passes its share on (not strict §14a)
     throttle_prio_hp: float = 1.0
     throttle_prio_ac: float = 2.0
     throttle_prio_wallbox: float = 3.0
@@ -240,7 +242,7 @@ class Settings:
         if settings.mode not in MODES:
             settings.mode = MODE_AUTO
         if settings.throttle_control not in THROTTLE_CONTROLS:
-            settings.throttle_control = THROTTLE_DIGITAL
+            settings.throttle_control = THROTTLE_ANALOG
         return settings
 
 
@@ -481,9 +483,11 @@ class Result:
     throttle_since: datetime | None = None
     throttle_devices: int = 0  # number of controllable devices
     throttle_min_kw: float | None = None  # power the grid operator guarantees (§14a)
+    throttle_limit_kw: float | None = None  # limit in force: Pmin (analog) or the value sent (digital)
     throttle_bonus_kw: float | None = None  # own PV / battery power on top
     throttle_budget_kw: float | None = None
     throttle_alloc_kw: dict[str, float] = field(default_factory=dict)  # max. power per device
+    throttle_hp_passed: bool = False  # idle heat pump passed its share on, its limit is only a reserve
     throttle_hp_control: bool = False  # heater block and compressor limit are applied
     throttle_heater_active: bool | None = None
     throttle_heater_desired: bool = False
@@ -558,17 +562,8 @@ def gzf(devices: int) -> float:
     return P14A_GZF.get(devices, P14A_GZF_MIN if devices > 8 else 1.0)
 
 
-def direct_limit_kw(key: str, power_kw: float) -> float:
-    """Limit of one device under direct control (relay)."""
-    if power_kw <= 0:
-        return 0.0
-    if key in ("hp", "ac") and power_kw > P14A_LARGE_KW:
-        return P14A_LARGE_FACTOR * power_kw
-    return min(power_kw, P14A_MIN_KW)
-
-
 def ems_min_kw(powers: dict[str, float]) -> float:
-    """Common minimum power of all devices behind the EMS (digital control).
+    """Common minimum power of all devices behind the EMS.
 
     Pmin = 4.2 kW + (n - 1) * GZF * 4.2 kW, or with heat pumps / air conditioners above 11 kW
     Pmin = max(0.4 * P_hp; 0.4 * P_ac) + (n - 1) * GZF * 4.2 kW
@@ -950,37 +945,38 @@ def evaluate(
     # Throttle mode: power per device
     powers = device_powers(settings)
     result.throttle_devices = sum(1 for p in powers.values() if p > 0)
-    if settings.throttle_control == THROTTLE_ANALOG:
-        limits = {key: direct_limit_kw(key, p) for key, p in powers.items()}
-        result.throttle_min_kw = round(sum(limits.values()), 2)
-    else:
-        limits = None
-        result.throttle_min_kw = round(ems_min_kw(powers), 2)
+    # Pmin per §14a: the EMS must guarantee it when the relay only switches (analog)
+    result.throttle_min_kw = round(ems_min_kw(powers), 2)
+    # Digital: the control box sends the limit itself; without a value Pmin applies
+    limit = result.throttle_min_kw
+    if settings.throttle_control == THROTTLE_DIGITAL and settings.throttle_limit_kw > 0:
+        limit = settings.throttle_limit_kw
+    result.throttle_limit_kw = round(limit, 2)
     if state.throttle_active:
-        if limits is not None:
-            # Direct control: fixed limit per device, no sharing and no own power on top
-            alloc = dict(limits)
-            if state.peak_active:
-                alloc["hp"] = 0.0
-            result.throttle_budget_kw = result.throttle_min_kw
-        else:
-            # The limit only applies to power from the grid: own PV and battery power come on top
-            bonus = 0.0
-            if sensors_ok:
-                bonus = (max(0.0, -inp.grid_w) + abs(inp.battery_w)) / 1000.0
-            budget = result.throttle_min_kw + bonus
-            result.throttle_bonus_kw = round(bonus, 2)
-            result.throttle_budget_kw = round(budget, 2)
-            order = priority_order(settings)
-            reserved = distribute(order, powers, budget)
-            # A heat pump that is idle (or blocked) passes its share on. It keeps its own
-            # limit so it can start; the others are cut back at the next evaluation.
-            demand = dict(powers)
-            hp_idle = inp.hp_power_w is not None and inp.hp_power_w < HP_IDLE_W
-            if state.peak_active or hp_idle:
-                demand["hp"] = 0.0
-            alloc = distribute(order, demand, budget)
-            alloc["hp"] = 0.0 if state.peak_active else reserved["hp"]
+        # The limit only applies to power from the grid: own PV and battery power come on top
+        bonus = 0.0
+        if sensors_ok:
+            # Export, battery discharge and the part of the battery charging that comes from PV.
+            # Charging from the grid is the battery's own (limited) grid draw, not generation.
+            charge_w = max(0.0, -inp.battery_w)
+            import_w = max(0.0, inp.grid_w)
+            bonus = (
+                max(0.0, -inp.grid_w) + max(0.0, inp.battery_w) + max(0.0, charge_w - import_w)
+            ) / 1000.0
+        budget = limit + bonus
+        result.throttle_bonus_kw = round(bonus, 2)
+        result.throttle_budget_kw = round(budget, 2)
+        order = priority_order(settings)
+        reserved = distribute(order, powers, budget)
+        # A blocked heat pump passes its share on. If enabled, an idle one does too; it keeps
+        # its own limit so it can start, and the others are cut back at the next evaluation.
+        demand = dict(powers)
+        hp_idle = inp.hp_power_w is not None and inp.hp_power_w < HP_IDLE_W
+        if state.peak_active or (settings.throttle_pass_idle and hp_idle):
+            demand["hp"] = 0.0
+        result.throttle_hp_passed = settings.throttle_pass_idle and hp_idle and not state.peak_active
+        alloc = distribute(order, demand, budget)
+        alloc["hp"] = 0.0 if state.peak_active else reserved["hp"]
         result.throttle_alloc_kw = {key: round(alloc.get(key, 0.0), 2) for key in THROTTLE_DEVICES}
     else:
         result.throttle_alloc_kw = {key: round(p, 2) for key, p in powers.items()}

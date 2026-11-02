@@ -23,7 +23,7 @@ def keys(c) -> list[str]:
     if c.has_price:
         out.append("price_stop_expensive")
     if c.has_throttle:
-        out += ["throttle_enabled", "throttle_signal"]
+        out += ["throttle_enabled", "throttle_signal", "throttle_pass_idle"]
     return out
 
 

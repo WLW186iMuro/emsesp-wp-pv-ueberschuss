@@ -176,9 +176,11 @@ class StatusSensor(PvSurplusEntity, SensorEntity):
                     "throttle_since": _iso(res.throttle_since),
                     "throttle_devices": res.throttle_devices,
                     "throttle_min_kw": res.throttle_min_kw,
+                    "throttle_limit_kw": res.throttle_limit_kw,
                     "throttle_bonus_kw": res.throttle_bonus_kw,
                     "throttle_budget_kw": res.throttle_budget_kw,
                     "throttle_alloc_kw": res.throttle_alloc_kw,
+                    "throttle_hp_passed": res.throttle_hp_passed,
                     "heater_block_active": res.throttle_heater_active,
                     "throttle_bits": inp.throttle_bits,
                 }

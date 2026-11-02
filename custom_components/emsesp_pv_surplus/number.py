@@ -51,6 +51,7 @@ SPECS: list[Spec] = [
     Spec("peak_max_duration_min", 10, 480, 5, UnitOfTime.MINUTES, "peak"),
     Spec("peak_lock_min", 0, 720, 5, UnitOfTime.MINUTES, "peak"),
     Spec("peak_max_per_day", 1, 10, 1, None, "peak"),
+    Spec("throttle_limit_kw", 0, 100, 0.1, UnitOfPower.KILO_WATT, "throttle"),
     Spec("throttle_hp_kw", 0, 30, 0.1, UnitOfPower.KILO_WATT, "throttle"),
     Spec("throttle_ac_kw", 0, 30, 0.1, UnitOfPower.KILO_WATT, "throttle"),
     Spec("throttle_wallbox_kw", 0, 22, 0.1, UnitOfPower.KILO_WATT, "throttle"),

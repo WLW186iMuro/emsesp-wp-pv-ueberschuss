@@ -32,6 +32,13 @@ Buderus-, Bosch- und Junkers-Wärmepumpen haben einen Eingang für PV / SG Ready
 | Normalbetrieb | `000000100000` |
 | PV-Betrieb | `100000100000` |
 
+Die optionalen Zusatzfunktionen nutzen zwei weitere Eingänge der Wärmepumpe, die EMS-ESP genauso als Bitmuster bereitstellt:
+
+| Eingang | Entität (Beispiel) | Funktion |
+|---|---|---|
+| Eingang 1 | `text.boiler_hpin1opt` | **EVU-Sperre** – Peak-Modus (Abschnitt 7.1) |
+| z. B. Eingang 3 | `text.boiler_hpin3opt` | **Sperre des Heizstabs** – Throttle Mode nach §14a (Abschnitt 8) |
+
 Die Integration setzt das erste Zeichen (Bit 0) auf `1`, wenn genug Solarstrom übrig ist, und wieder auf `0`, wenn nicht. Dabei achtet sie auf drei Dinge:
 
 - **Der Akku geht vor.** Erst wenn der Hausakku ausreichend geladen ist (oder laut Prognose heute noch voll wird), darf der Solarstrom in die Wärmepumpe.
@@ -248,24 +255,26 @@ Den Eingang (z. B. Eingang 3 der Buderus-WP) musst du in der Wärmepumpe so eins
 
 - Schalter **Throttle Mode** – schaltet die Funktion frei (auch auf der Karte),
 - Schalter **Drosselung: Steuersignal** – setzt deine Steuerbox bzw. eine Automation auf *an*, solange der Netzbetreiber drosselt,
-- Einstellungsgruppe **Throttle Mode (§14a)**: Steuerung (digital/analog), maximale Eingangsleistung je Gerät in kW (0 = nicht vorhanden) und die Priorität je Gerät (1 = zuerst versorgt).
+- Zahl **Drosselung: Leistungsvorgabe Netzbetreiber** (kW) – nur bei digitaler Steuerung: die Grenze, die die Steuerbox sendet; eine Automation trägt sie ein,
+- Einstellungsgruppe **Throttle Mode (§14a)**: Steuerung (analog/digital), maximale Eingangsleistung je Gerät in kW (0 = nicht vorhanden) und die Priorität je Gerät (1 = zuerst versorgt).
 
-**Was der Netzbetreiber garantiert** (Festlegung BK6-22-300 der Bundesnetzagentur):
+**Welche Grenze gilt** (Festlegung BK6-22-300 der Bundesnetzagentur, Steuerung über ein EMS):
 
-| Steuerung | Mindestleistung |
-|---|---|
-| **Digital über das EMS (EEBUS)** – eine gemeinsame Grenze für alle Geräte | `4,2 kW + (n − 1) × GZF × 4,2 kW`; sind Wärmepumpe oder Klimagerät größer als 11 kW: `max(0,4 × P_WP; 0,4 × P_Klima) + (n − 1) × GZF × 4,2 kW` |
-| **Analog, direkt (Relais)** – feste Grenze je Gerät | Wallbox und Speicher je 4,2 kW; Wärmepumpe und Klimagerät je 4,2 kW, über 11 kW 40 % ihrer Leistung |
+| Steuerung | Was die Steuerbox überträgt | Grenze für alle Geräte zusammen |
+|---|---|---|
+| **Analog (Relais)** – Standard | nur *an/aus* über einen Relaiskontakt | die Integration berechnet die **Mindestleistung** selbst: `4,2 kW + (n − 1) × GZF × 4,2 kW`; sind Wärmepumpe oder Klimagerät größer als 11 kW: `max(0,4 × P_WP; 0,4 × P_Klima) + (n − 1) × GZF × 4,2 kW` |
+| **Digital (EEBUS)** | einen **Leistungswert** in kW | der Wert aus *Drosselung: Leistungsvorgabe Netzbetreiber*; steht dort 0, gilt die Mindestleistung wie bei analog |
 
-`n` = Anzahl der Geräte mit Leistung > 0, Gleichzeitigkeitsfaktor GZF: 2 → 0,8 · 3 → 0,75 · 4 → 0,7 · 5 → 0,65 · 6 → 0,6 · 7 → 0,55 · 8 → 0,5 · ab 9 → 0,45. Beispiel: Wärmepumpe 9 kW, Klimagerät 3 kW, Wallbox 11 kW → digital `4,2 + 2 × 0,75 × 4,2 = 10,5 kW`.
+`n` = Anzahl der Geräte mit Leistung > 0, Gleichzeitigkeitsfaktor GZF: 2 → 0,8 · 3 → 0,75 · 4 → 0,7 · 5 → 0,65 · 6 → 0,6 · 7 → 0,55 · 8 → 0,5 · ab 9 → 0,45. Beispiel: Wärmepumpe 9 kW, Klimagerät 3 kW, Wallbox 11 kW → `4,2 + 2 × 0,75 × 4,2 = 10,5 kW`.
 
-**Verteilung (digital):**
+Beispiel-Automation für digital: Liefert deine EEBUS-Anbindung die Grenze als Sensor, schreibst du sie bei jeder Änderung mit `number.set_value` in *Drosselung: Leistungsvorgabe Netzbetreiber* und schaltest *Drosselung: Steuersignal* an, solange die Begrenzung aktiv ist.
 
-- Die Grenze gilt nur für den Bezug aus dem Netz. Was die PV-Anlage gerade einspeist und was der Akku lädt oder liefert, kommt als **eigene Erzeugung** dazu.
+**Verteilung (analog und digital):**
+
+- Die Grenze gilt nur für den Bezug aus dem Netz. Als **eigene Erzeugung** kommen dazu: was die PV-Anlage gerade einspeist, was der Akku entlädt und der Teil der Akku-Ladung, der aus PV stammt. Lädt der Akku aus dem Netz, zählt das nicht dazu.
 - Die Leistung wird nach **Priorität** verteilt; jedes Gerät bekommt höchstens seine maximale Eingangsleistung.
-- Läuft die Wärmepumpe gerade nicht (Kompressor < 100 W), geht ihr Anteil an das nächste Gerät. Sie behält aber ihre eigene Grenze, damit sie jederzeit starten kann; die anderen Geräte werden dann bei der nächsten Auswertung (15 s) zurückgenommen.
-
-Bei **analoger Steuerung** bekommt jedes Gerät seine feste Grenze, ohne Umverteilung und ohne eigene Erzeugung.
+- Die Wärmepumpe behält ihren Anteil auch, wenn sie gerade nicht läuft. So ist die Summe aller Grenzen nie größer als die erlaubte Leistung (streng nach §14a).
+- Optional: Mit dem Schalter **Anteil ruhender Wärmepumpe weitergeben** geht ihr Anteil an das nächste Gerät, solange der Kompressor unter 300 W liegt. Sie behält ihre eigene Grenze, damit sie jederzeit starten kann; die anderen Geräte werden dann bei der nächsten Auswertung (15 s) zurückgenommen. Bis dahin kann der Netzbezug kurz über der Grenze liegen.
 
 **Was an der Wärmepumpe passiert:**
 
@@ -388,6 +397,7 @@ Alle Einstellungen sind auch Entitäten (number / switch / select / time). Du ka
 | `sensor.<name>_evu_sperren_heute` | Peak-Modus: EVU-Sperren heute |
 | `switch.<name>_throttle_mode` | Throttle Mode an/aus (nur mit Eingangs-Option für die Drosselung) |
 | `switch.<name>_drosselung_steuersignal` | §14a-Steuersignal, von Steuerbox/Automation gesetzt |
+| `number.<name>_drosselung_leistungsvorgabe_netzbetreiber` | Leistungsvorgabe der Steuerbox in kW (nur digital), von einer Automation gesetzt |
 | `binary_sensor.<name>_drosselung_aktiv` | Drosselung läuft |
 | `sensor.<name>_drosselung_max_leistung_wallbox` | erlaubte Leistung Wallbox in kW (ebenso `…_klimagerat`, `…_warmepumpe`, `…_max_ladeleistung_speicher`) |
 
@@ -410,6 +420,6 @@ Seite einmal mit Strg+F5 neu laden. Bei Dashboards im YAML-Modus die Ressource `
 Eine davon abschalten. Sonst schalten sich beide gegenseitig um.
 
 **Was passiert beim Entfernen der Integration?**
-Hatte sie das Bit gesetzt, setzt sie es auf Normalbetrieb zurück.
+Hatte sie das PV-Bit gesetzt, setzt sie es auf Normalbetrieb zurück. Das Bit der EVU-Sperre (Peak-Modus) und das Bit der Heizstab-Sperre (Throttle Mode) setzt sie immer auf `0` zurück, und *PV max. Kompressorleistung* bekommt den Wert von vor der Drosselung.
 
 **Fehler melden:** [Issue anlegen](https://github.com/WLW186iMuro/emsesp-wp-pv-ueberschuss/issues) und die Diagnosedaten anhängen (*Integration → ⋮ → Diagnosedaten herunterladen*).

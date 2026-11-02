@@ -299,6 +299,9 @@
       "peak_max_per_day": {
         "name": "Peak: max. activations per day"
       },
+      "throttle_limit_kw": {
+        "name": "Throttle: power limit from the grid operator"
+      },
       "throttle_hp_kw": {
         "name": "Throttle: max. input power heat pump (incl. heater rod)"
       },
@@ -345,6 +348,9 @@
       },
       "throttle_signal": {
         "name": "Throttle: control signal"
+      },
+      "throttle_pass_idle": {
+        "name": "Throttle: pass on share of idle heat pump"
       }
     },
     "select": {
@@ -359,8 +365,8 @@
       "throttle_control": {
         "name": "Throttle: control",
         "state": {
-          "digital": "Digital (EMS/EEBUS)",
-          "analog": "Analogue (relay)"
+          "analog": "Analogue (relay)",
+          "digital": "Digital (EEBUS)"
         }
       }
     },

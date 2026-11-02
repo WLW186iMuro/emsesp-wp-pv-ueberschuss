@@ -299,6 +299,9 @@
       "peak_max_per_day": {
         "name": "Peak: Max. Aktivierungen pro Tag"
       },
+      "throttle_limit_kw": {
+        "name": "Drosselung: Leistungsvorgabe Netzbetreiber"
+      },
       "throttle_hp_kw": {
         "name": "Drosselung: Max. Eingangsleistung Wärmepumpe (inkl. Heizstab)"
       },
@@ -345,6 +348,9 @@
       },
       "throttle_signal": {
         "name": "Drosselung: Steuersignal"
+      },
+      "throttle_pass_idle": {
+        "name": "Drosselung: Anteil ruhender Wärmepumpe weitergeben"
       }
     },
     "select": {
@@ -359,8 +365,8 @@
       "throttle_control": {
         "name": "Drosselung: Steuerung",
         "state": {
-          "digital": "Digital (EMS/EEBUS)",
-          "analog": "Analog (Relais)"
+          "analog": "Analog (Relais)",
+          "digital": "Digital (EEBUS)"
         }
       }
     },

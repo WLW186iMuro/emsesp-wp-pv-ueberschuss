@@ -1037,13 +1037,6 @@ class TestThrottleFormulas(unittest.TestCase):
         self.assertAlmostEqual(logic.ems_min_kw(p(hp=12)), 4.8)
         self.assertAlmostEqual(logic.ems_min_kw(p(hp=12, ac=14, wallbox=11)), 5.6 + 2 * 0.75 * 4.2)
 
-    def test_direct_limit(self):
-        self.assertEqual(logic.direct_limit_kw("hp", 9), 4.2)
-        self.assertAlmostEqual(logic.direct_limit_kw("hp", 12), 4.8)
-        self.assertEqual(logic.direct_limit_kw("ac", 3), 3)  # below 4.2 kW not limited
-        self.assertEqual(logic.direct_limit_kw("wallbox", 22), 4.2)  # 4.2 kW also above 11 kW
-        self.assertEqual(logic.direct_limit_kw("battery", 0), 0.0)
-
     def test_priority_order(self):
         s = logic.Settings()
         self.assertEqual(logic.priority_order(s), ["hp", "ac", "wallbox", "battery"])
@@ -1078,14 +1071,30 @@ class TestThrottle(unittest.TestCase):
         self.assertEqual(sim.pvmax, 7.6)
         self.assertIn("throttle_start:throttle", sim.events)
 
-    def test_idle_heat_pump_passes_share_on(self):
+    def test_idle_heat_pump_keeps_share_by_default(self):
         sim = throttle_sim(throttle_signal=True)
         sim.hp_w = 20.0
         res = sim.step()
+        self.assertFalse(res.throttle_hp_passed)
+        # strict §14a: the sum of all limits never exceeds the budget
+        self.assertEqual(res.throttle_alloc_kw["hp"], 7.56)
+        self.assertEqual(res.throttle_alloc_kw["wallbox"], 0.0)
+
+    def test_idle_heat_pump_passes_share_on(self):
+        sim = throttle_sim(throttle_signal=True, throttle_pass_idle=True)
+        sim.hp_w = 20.0
+        res = sim.step()
+        self.assertTrue(res.throttle_hp_passed)
         self.assertEqual(res.throttle_alloc_kw["wallbox"], 7.56)
         # the heat pump keeps its limit so it can start
         self.assertEqual(res.throttle_alloc_kw["hp"], 7.56)
         sim.hp_w = 2500.0
+        res = sim.step()
+        self.assertEqual(res.throttle_alloc_kw["wallbox"], 0.0)
+        sim.hp_w = 250.0  # below 300 W the compressor counts as idle
+        res = sim.step()
+        self.assertEqual(res.throttle_alloc_kw["wallbox"], 7.56)
+        sim.hp_w = 300.0
         res = sim.step()
         self.assertEqual(res.throttle_alloc_kw["wallbox"], 0.0)
 
@@ -1106,6 +1115,19 @@ class TestThrottle(unittest.TestCase):
         self.assertEqual(res.throttle_alloc_kw["hp"], 9.0)
         self.assertAlmostEqual(res.throttle_alloc_kw["wallbox"], 1.56)
 
+    def test_battery_charging_from_grid_is_no_own_power(self):
+        sim = throttle_sim(throttle_signal=True)
+        sim.grid_w = 10000.0  # importing 10 kW
+        sim.battery_w = -10000.0  # all of it goes into the battery
+        res = sim.step()
+        self.assertEqual(res.throttle_bonus_kw, 0.0)
+        sim.grid_w = 4000.0  # 10 kW charging, 6 kW of it from PV
+        res = sim.step()
+        self.assertEqual(res.throttle_bonus_kw, 6.0)
+        sim.grid_w = -1000.0  # 10 kW charging from PV and 1 kW export
+        res = sim.step()
+        self.assertEqual(res.throttle_bonus_kw, 11.0)
+
     def test_no_own_power_without_readings(self):
         sim = throttle_sim(throttle_signal=True)
         sim.grid_w = None
@@ -1113,15 +1135,36 @@ class TestThrottle(unittest.TestCase):
         self.assertEqual(res.throttle_bonus_kw, 0.0)
         self.assertAlmostEqual(res.throttle_budget_kw, 7.56)
 
-    def test_analog_fixed_limits(self):
-        sim = throttle_sim(throttle_signal=True, throttle_control=logic.THROTTLE_ANALOG, throttle_ac_kw=3.0)
-        sim.grid_w = -5000.0  # own power does not count under direct control
-        sim.hp_w = 20.0  # and nothing is passed on
+    def test_analog_uses_pmin(self):
+        sim = throttle_sim(throttle_signal=True, throttle_limit_kw=12.0)
+        self.assertEqual(sim.settings.throttle_control, logic.THROTTLE_ANALOG)  # default
         res = sim.step()
-        self.assertEqual(res.throttle_alloc_kw, {"hp": 4.2, "ac": 3.0, "wallbox": 4.2, "battery": 0.0})
-        self.assertAlmostEqual(res.throttle_min_kw, 11.4)
-        self.assertIsNone(res.throttle_bonus_kw)
-        self.assertEqual(sim.pvmax, 4.2)
+        # a relay only switches: the value field is ignored, Pmin applies
+        self.assertAlmostEqual(res.throttle_limit_kw, 7.56)
+        self.assertAlmostEqual(res.throttle_budget_kw, 7.56)
+
+    def test_digital_uses_sent_limit(self):
+        sim = throttle_sim(throttle_signal=True, throttle_control=logic.THROTTLE_DIGITAL, throttle_limit_kw=12.0)
+        sim.grid_w = -1000.0  # own power still comes on top
+        res = sim.step()
+        self.assertAlmostEqual(res.throttle_min_kw, 7.56)
+        self.assertAlmostEqual(res.throttle_limit_kw, 12.0)
+        self.assertAlmostEqual(res.throttle_budget_kw, 13.0)
+        self.assertEqual(res.throttle_alloc_kw["hp"], 9.0)
+        self.assertAlmostEqual(res.throttle_alloc_kw["wallbox"], 4.0)
+        # a lower value takes effect at the next evaluation
+        sim.settings.throttle_limit_kw = 5.0
+        sim.grid_w = 0.0
+        res = sim.step()
+        self.assertAlmostEqual(res.throttle_budget_kw, 5.0)
+        self.assertEqual(res.throttle_alloc_kw["hp"], 5.0)
+        self.assertEqual(sim.pvmax, 5.0)
+
+    def test_digital_without_value_falls_back_to_pmin(self):
+        sim = throttle_sim(throttle_signal=True, throttle_control=logic.THROTTLE_DIGITAL)
+        res = sim.step()
+        self.assertAlmostEqual(res.throttle_limit_kw, 7.56)
+        self.assertAlmostEqual(res.throttle_budget_kw, 7.56)
 
     def test_end_restores_heat_pump(self):
         sim = throttle_sim(throttle_signal=True)
@@ -1265,5 +1308,5 @@ class TestThrottle(unittest.TestCase):
         self.assertEqual(state.throttle_comp_restore, 2.5)
         self.assertEqual(state.throttle_since, sim.state.throttle_since)
         settings = logic.Settings.from_dict({**sim.settings.to_dict(), "throttle_control": "bogus"})
-        self.assertEqual(settings.throttle_control, logic.THROTTLE_DIGITAL)
+        self.assertEqual(settings.throttle_control, logic.THROTTLE_ANALOG)
         self.assertTrue(settings.throttle_signal)

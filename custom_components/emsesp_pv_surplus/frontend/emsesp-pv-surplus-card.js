@@ -78,11 +78,15 @@
       throttleRunning: "Drosselung nach §14a aktiv",
       throttleIdle: "kein Steuersignal",
       throttleOff: "bereit",
-      throttleControl: { digital: "Digital (EMS/EEBUS)", analog: "Analog (Relais)" },
+      throttleControl: { analog: "Analog (Relais)", digital: "Digital (EEBUS)" },
       throttleMin: "Mindestleistung nach §14a",
+      throttleLimit: "Vorgabe Netzbetreiber",
+      throttleNoLimit: "keine Vorgabe – Mindestleistung gilt",
       throttleBonus: "eigene Erzeugung (PV/Akku)",
       throttleBudget: "Leistung gesamt",
       throttleMax: "max.",
+      throttlePassed: (r) => `ruht · Anteil weitergegeben (Reserve ${r})`,
+      throttleSum: (u, b) => `Verteilt: ${u} von ${b}`,
       throttleEvu: "EVU-Sperre aktiv – Wärmepumpe bleibt unverändert",
       devices: { hp: "Wärmepumpe", ac: "Klimagerät", wallbox: "Wallbox", battery: "Speicher" },
       lockUntil: "bis",
@@ -136,7 +140,8 @@
         peak_max_duration_min: ["Max. Dauer der Sperre", "danach immer aufheben, egal wie der Preis ist"],
         peak_lock_min: ["Sperrzeit", "Pause nach der letzten EVU-Sperre"],
         peak_max_per_day: ["Max. Aktivierungen pro Tag", ""],
-        throttle_control: ["Steuerung durch den Netzbetreiber", "digital: gemeinsame Grenze, PV/Akku zusätzlich; analog: feste Grenze je Gerät"],
+        throttle_control: ["Steuerung durch den Netzbetreiber", "analog: Relais schaltet nur, Grenze = Mindestleistung nach §14a; digital: Steuerbox sendet die Grenze"],
+        throttle_limit_kw: ["Leistungsvorgabe (digital)", "vom Netzbetreiber gesendete Grenze, per Automation setzen; 0 = Mindestleistung"],
         throttle_hp_kw: ["Max. Eingangsleistung Wärmepumpe", "inkl. Heizstab, 0 = keine Wärmepumpe"],
         throttle_ac_kw: ["Max. Eingangsleistung Klimagerät", "0 = kein Klimagerät"],
         throttle_wallbox_kw: ["Max. Eingangsleistung Wallbox", "0 = keine Wallbox"],
@@ -145,6 +150,7 @@
         throttle_prio_ac: ["Priorität Klimagerät", ""],
         throttle_prio_wallbox: ["Priorität Wallbox", ""],
         throttle_prio_battery: ["Priorität Speicher", ""],
+        throttle_pass_idle: ["Anteil ruhender Wärmepumpe weitergeben", "Kompressor < 300 W: andere Geräte bekommen ihren Anteil, bis sie startet (nicht streng nach §14a)"],
       },
       buttons: { reset_lock: "Sperrzeit aufheben", reset_counter: "Tageszähler zurücksetzen" },
       lastAction: "Zuletzt",
@@ -218,11 +224,15 @@
       throttleRunning: "§14a throttling active",
       throttleIdle: "no control signal",
       throttleOff: "ready",
-      throttleControl: { digital: "Digital (EMS/EEBUS)", analog: "Analogue (relay)" },
+      throttleControl: { analog: "Analogue (relay)", digital: "Digital (EEBUS)" },
       throttleMin: "Minimum power under §14a",
+      throttleLimit: "Limit from the grid operator",
+      throttleNoLimit: "no limit received – minimum power applies",
       throttleBonus: "own generation (PV/battery)",
       throttleBudget: "Total power",
       throttleMax: "max.",
+      throttlePassed: (r) => `idle · share passed on (reserve ${r})`,
+      throttleSum: (u, b) => `Distributed: ${u} of ${b}`,
       throttleEvu: "EVU block active – heat pump left unchanged",
       devices: { hp: "Heat pump", ac: "Air conditioner", wallbox: "Wallbox", battery: "Battery" },
       lockUntil: "until",
@@ -276,7 +286,8 @@
         peak_max_duration_min: ["Max. block duration", "always lifted after this, whatever the price"],
         peak_lock_min: ["Lock time", "pause after the last EVU lock activation"],
         peak_max_per_day: ["Max. activations per day", ""],
-        throttle_control: ["Control by the grid operator", "digital: one common limit, PV/battery on top; analogue: fixed limit per device"],
+        throttle_control: ["Control by the grid operator", "analogue: relay only switches, limit = §14a minimum power; digital: the control box sends the limit"],
+        throttle_limit_kw: ["Power limit (digital)", "limit sent by the grid operator, set it by automation; 0 = minimum power"],
         throttle_hp_kw: ["Max. input power heat pump", "incl. heater rod, 0 = no heat pump"],
         throttle_ac_kw: ["Max. input power air conditioner", "0 = no air conditioner"],
         throttle_wallbox_kw: ["Max. input power wallbox", "0 = no wallbox"],
@@ -285,6 +296,7 @@
         throttle_prio_ac: ["Priority air conditioner", ""],
         throttle_prio_wallbox: ["Priority wallbox", ""],
         throttle_prio_battery: ["Priority battery", ""],
+        throttle_pass_idle: ["Pass on share of idle heat pump", "compressor < 300 W: other devices get its share until it starts (not strict §14a)"],
       },
       buttons: { reset_lock: "Lift lock time", reset_counter: "Reset daily counter" },
       lastAction: "Last",
@@ -300,11 +312,11 @@
     ["price", ["price_cheap_ct", "price_expensive_ct", "price_stop_expensive", "price_comp_kw"]],
     ["peak", ["peak_factor_pct", "peak_soc_margin", "peak_import_min", "peak_max_duration_min", "peak_lock_min", "peak_max_per_day"]],
     ["throttle", [
-      "throttle_control", "throttle_hp_kw", "throttle_ac_kw", "throttle_wallbox_kw", "throttle_battery_kw",
-      "throttle_prio_hp", "throttle_prio_ac", "throttle_prio_wallbox", "throttle_prio_battery",
+      "throttle_control", "throttle_limit_kw", "throttle_hp_kw", "throttle_ac_kw", "throttle_wallbox_kw", "throttle_battery_kw",
+      "throttle_prio_hp", "throttle_prio_ac", "throttle_prio_wallbox", "throttle_prio_battery", "throttle_pass_idle",
     ]],
   ];
-  const SWITCH_FIELDS = new Set(["price_stop_expensive"]);
+  const SWITCH_FIELDS = new Set(["price_stop_expensive", "throttle_pass_idle"]);
   const SELECT_FIELDS = new Set(["throttle_control"]);
   const DEVICES = ["hp", "ac", "wallbox", "battery"];
   const CHECKS = ["sensors", "sun", "window", "battery", "lock", "limit", "surplus", "forecast", "price", "delay"];
@@ -401,6 +413,10 @@
     .inp select { max-width:190px; box-sizing:border-box; padding:6px 8px; border-radius:8px; border:1px solid var(--divider-color); background:var(--card-background-color); color:var(--primary-text-color); font:inherit; font-size:.88rem; }
     .alloc { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:4px 16px; margin-top:6px; }
     .alloc .check .d { color:var(--primary-text-color); }
+    .alloc .check.reduced ha-icon { color: var(--warning-color, #ffa600); }
+    .alloc .check.blocked ha-icon { color: var(--error-color, #db4437); }
+    .alloc .check.no .d { color:var(--secondary-text-color); white-space:normal; text-align:right; }
+    .alloc .sum { grid-column:1 / -1; font-size:.85rem; color:var(--secondary-text-color); padding-top:2px; }
     .foot { margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; }
     .btn { border:1px solid var(--divider-color); background:transparent; color:var(--primary-text-color); border-radius:999px; padding:6px 14px; font:inherit; font-size:.82rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
     .btn ha-icon { --mdc-icon-size:16px; }
@@ -931,29 +947,51 @@
       if (!thrSec.hidden) {
         const kw = (v) => (v !== null && v !== undefined ? `${this._num(v, 2)} kW` : "–");
         const active = !!a.throttle_active;
+        const limitLines = () => {
+          const out = [`<b>${esc(t.throttleMin)}</b> ${esc(kw(a.throttle_min_kw))}`];
+          if (a.throttle_control === "digital") {
+            out.push(
+              (val("throttle_limit_kw") ?? 0) > 0
+                ? `<b>${esc(t.throttleLimit)}</b> ${esc(kw(a.throttle_limit_kw))}`
+                : esc(t.throttleNoLimit)
+            );
+          }
+          return out;
+        };
         root.getElementById("throttle-title").textContent = active ? t.throttleRunning : t.throttle;
         const lines = [`<b>${esc(t.control)}</b> ${esc(t.throttleControl[a.throttle_control] || a.throttle_control || "–")}`];
         if (active) {
           lines.push(`<b>${esc(t.since)}</b> ${esc(this._time(a.throttle_since))}`);
-          lines.push(`<b>${esc(t.throttleMin)}</b> ${esc(kw(a.throttle_min_kw))}`);
+          lines.push(...limitLines());
           if (a.throttle_bonus_kw !== null && a.throttle_bonus_kw !== undefined) {
             lines.push(`<b>+ ${esc(t.throttleBonus)}</b> ${esc(kw(a.throttle_bonus_kw))}`);
           }
           lines.push(`<b>${esc(t.throttleBudget)}</b> ${esc(kw(a.throttle_budget_kw))}`);
           if (a.peak_active) lines.push(esc(t.throttleEvu));
         } else {
-          lines.push(`<b>${esc(t.throttleMin)}</b> ${esc(kw(a.throttle_min_kw))} · ${esc(t.throttleIdle)}`);
+          lines.push(...limitLines());
+          lines.push(esc(t.throttleIdle));
         }
         root.getElementById("throttle-run").innerHTML = lines.join("<br>");
         const alloc = a.throttle_alloc_kw || {};
         const order = (a.throttle_order || DEVICES).filter((d) => (val(`throttle_${d}_kw`) ?? 0) > 0);
+        // An idle heat pump that passed its share on only keeps its limit as a reserve
+        const passed = (d) => active && d === "hp" && a.throttle_hp_passed === true;
+        const used = order.reduce((sum, d) => sum + (passed(d) ? 0 : alloc[d] ?? 0), 0);
+        const sum = active ? `<div class="sum">${esc(t.throttleSum(kw(used), kw(a.throttle_budget_kw)))}</div>` : "";
         root.getElementById("throttle-alloc").innerHTML = order
           .map((d, i) => {
             const max = val(`throttle_${d}_kw`);
-            const limited = active && (alloc[d] ?? 0) < (max ?? 0) - 0.005;
-            return `<div class="check ${limited ? "no" : "ok"}"><ha-icon icon="${limited ? "mdi:speedometer-slow" : "mdi:speedometer"}"></ha-icon><span>${i + 1}. ${esc(t.devices[d])}</span><span class="d">${esc(kw(alloc[d]))} / ${esc(t.throttleMax)} ${esc(kw(max))}</span></div>`;
+            if (passed(d)) {
+              return `<div class="check no"><ha-icon icon="mdi:sleep"></ha-icon><span>${i + 1}. ${esc(t.devices[d])}</span><span class="d">${esc(t.throttlePassed(kw(alloc[d])))}</span></div>`;
+            }
+            // green = full power, orange = reduced, red = none left
+            const got = alloc[d] ?? 0;
+            const cls = !active || got >= (max ?? 0) - 0.005 ? "ok" : got < 0.005 ? "blocked" : "reduced";
+            const icon = { ok: "mdi:speedometer", reduced: "mdi:speedometer-medium", blocked: "mdi:speedometer-slow" }[cls];
+            return `<div class="check ${cls}"><ha-icon icon="${icon}"></ha-icon><span>${i + 1}. ${esc(t.devices[d])}</span><span class="d">${esc(kw(alloc[d]))} / ${esc(t.throttleMax)} ${esc(kw(max))}</span></div>`;
           })
-          .join("");
+          .join("") + sum;
       }
 
       // Controls
@@ -968,6 +1006,9 @@
       // Price settings only while the price control is switched on
       const priceOn = this._st("price_control")?.state === "on";
       root.querySelectorAll('[data-grp="price"], [data-grp="peak"]').forEach((g) => (g.hidden = !priceOn));
+      // The power limit is only sent with digital control
+      const limitField = root.querySelector('[data-field="throttle_limit_kw"]')?.closest(".field");
+      if (limitField) limitField.hidden = this._st("throttle_control")?.state !== "digital";
 
       // Settings (do not overwrite a field the user is editing)
       const active = root.activeElement;

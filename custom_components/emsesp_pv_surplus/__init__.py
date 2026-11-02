@@ -159,12 +159,12 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
             )
         except HomeAssistantError as err:
             _LOGGER.warning("Could not reset %s: %s", entity_id, err)
-    # Lift an EVU block we set (also in observe mode, see controller)
-    evu_written = (data.get("state") or {}).get("evu_written")
+    # Lift the EVU block of the peak mode and the heater block of the throttle mode:
+    # both inputs are only used by these modes, so they go back to normal in any case
     evu_id = cfg.get(CONF_EVU_ENTITY)
     evu = hass.states.get(evu_id) if evu_id else None
     evu_bit = int(cfg.get(CONF_EVU_BIT) or 0)
-    if evu_written and evu and valid_bits(evu.state, evu_bit) and evu.state[evu_bit] == "1":
+    if evu and valid_bits(evu.state, evu_bit) and evu.state[evu_bit] == "1":
         try:
             await hass.services.async_call(
                 "text",
@@ -174,17 +174,11 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
             )
         except HomeAssistantError as err:
             _LOGGER.warning("Could not reset %s: %s", evu_id, err)
-    # Lift a heater block of the §14a throttling and restore the compressor limit
     stored = data.get("state") or {}
     heater_id = cfg.get(CONF_THROTTLE_ENTITY)
     heater = hass.states.get(heater_id) if heater_id else None
     heater_bit = int(cfg.get(CONF_THROTTLE_BIT) or 0)
-    if (
-        stored.get("throttle_written")
-        and heater
-        and valid_bits(heater.state, heater_bit)
-        and heater.state[heater_bit] == "1"
-    ):
+    if heater and valid_bits(heater.state, heater_bit) and heater.state[heater_bit] == "1":
         try:
             await hass.services.async_call(
                 "text",
@@ -194,6 +188,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
             )
         except HomeAssistantError as err:
             _LOGGER.warning("Could not reset %s: %s", heater_id, err)
+    # Restore the compressor limit from before the throttling
     restore = stored.get("throttle_comp_restore")
     comp_id = cfg.get(CONF_PVMAXCOMP_ENTITY)
     if restore is not None and comp_id and hass.states.get(comp_id):
