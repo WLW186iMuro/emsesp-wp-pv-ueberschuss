@@ -82,7 +82,7 @@ Neue Einrichtungen starten im **Beobachtungsmodus**. Die Integration rechnet all
 [Beobachtung] würde PV-Betrieb beenden (kein Überschuss mehr)
 ```
 
-![Logbuch im Beobachtungsmodus](screenshots/logbuch-start.png)
+![Logbuch im Beobachtungsmodus](screenshots/logbuch-beobachtung.png)
 
 So kannst du ein paar sonnige Tage lang prüfen, ob die Starts und Stopps zu deinem Haus passen. Wenn alles stimmt, schaltest du auf der Karte den Schalter **Beobachtungsmodus** aus. Ab dann wird wirklich geschaltet.
 

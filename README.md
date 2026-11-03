@@ -19,7 +19,7 @@ Du brauchst kein YAML, keine Helfer und keine Automationen: installieren, Entit�
 
 ![Dashboard-Karte](docs/screenshots/karte.png)
 
-*Die Dashboard-Karte im echten Betrieb an einer Buderus WLW186i (abends: Sonne untergegangen, Akku fast leer – alle Startbedingungen auf einen Blick).*
+*Die Dashboard-Karte im echten Betrieb an einer Buderus WLW186i mit Version 0.4.0 (abends: Sonne untergegangen, Akku fast leer – alle Startbedingungen auf einen Blick).*
 
 ## Funktionen
 
@@ -42,7 +42,7 @@ Du brauchst kein YAML, keine Helfer und keine Automationen: installieren, Entit�
 
 ## Screenshots
 
-Alle Bilder stammen aus einer laufenden Installation (Buderus WLW186i, GoodWe GW10K-ET, Solcast).
+Alle Bilder stammen aus einer laufenden Installation mit Version 0.4.0 (Buderus WLW186i, GoodWe GW10K-ET, Solcast).
 
 | Einrichtung: Quell-Entitäten (1/2) | Einrichtung: Quell-Entitäten (2/2) |
 |---|---|
@@ -52,13 +52,13 @@ Alle Bilder stammen aus einer laufenden Installation (Buderus WLW186i, GoodWe GW
 |---|---|
 | ![Einstellungen 1](docs/screenshots/einstellungen-1.png) | ![Einstellungen 2](docs/screenshots/einstellungen-2.png) |
 
-**Logbuch eines echten Tages im Beobachtungsmodus** – Start nach 5 Minuten stabilem Überschuss, danach Anpassung der Kompressorleistung alle 5 Minuten, am Ende Stopp mangels Überschuss und Sperrzeit:
+**Logbuch eines echten Tages (31.10.2026)** – Start nach 5 Minuten stabilem Überschuss, PV-Signal an die Wärmepumpe, Anpassung der Kompressorleistung alle 5 Minuten, kurze Wolken überbrückt, am Ende Stopp mangels Überschuss:
 
-| Vormittag: Start und Leistungsanpassung | Nachmittag: Defizit, Stopp, Sperrzeit |
+| Vormittag: Start und Leistungsanpassung | Nachmittag: Wolken, Defizit, Stopp |
 |---|---|
 | ![Logbuch Start](docs/screenshots/logbuch-start.png) | ![Logbuch Ende](docs/screenshots/logbuch-ende.png) |
 
-**Geräteseite** mit Betriebsart, Sensoren und Verlauf:
+**Geräteseite** mit Betriebsart, Sensoren und Aktivität:
 
 ![Geräteseite](docs/screenshots/geraet.png)
 

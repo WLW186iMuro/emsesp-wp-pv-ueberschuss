@@ -82,7 +82,7 @@ New installations start in **observe mode**. The integration does all the calcul
 [Observe] would end PV mode (surplus gone)
 ```
 
-![Logbook in observe mode (German UI)](screenshots/logbuch-start.png)
+![Logbook in observe mode (German UI)](screenshots/logbuch-beobachtung.png)
 
 This way you can check over a few sunny days whether starts and stops fit your house. When everything looks right, turn off the **Observe mode** switch on the card. From then on it really switches.
 
