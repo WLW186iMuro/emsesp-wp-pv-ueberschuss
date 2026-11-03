@@ -31,7 +31,9 @@ Du brauchst kein YAML, keine Helfer und keine Automationen: installieren, Entit�
   - maximale Aktivierungen pro Tag
   - Startfenster
 - **Sofort-Stopp:** bei Akku unter der Abschaltgrenze (2 min), bei Sonnenuntergang oder wenn Messwerte 10 min fehlen.
+- **Neustart-fest:** Nach einem Neustart von Home Assistant oder EMS-ESP läuft ein laufender Betrieb weiter; ein Cloud-Preissensor bekommt bis zu 15 Minuten Zeit zum Laden.
 - **Leistungsnachführung (optional):** passt im PV-Betrieb `PV max. Kompressorleistung` (`pvmaxcomp`) an das gemittelte Budget an (aktuelle Kompressorleistung + verbleibender Überschuss). Die Grenze bleibt in einem Min/Max-Bereich und ändert sich nur alle *n* Minuten, nicht im Sekundentakt.
+- **Beenden nach Kompressor-Stillstand (optional):** Ist der Kompressor im PV-Betrieb gelaufen und steht danach z. B. 20 Minuten still, endet der PV-Betrieb. Das verhindert einen zweiten, unnötigen Warmwasser-Start. [Details](docs/anleitung.md#53-ausschalten)
 - **Strompreis-Steuerung (optional):** für dynamische oder zeitvariable Tarife (Tibber, aWATTar, Octopus …). Bei günstigem Strom PV-Betrieb auch ohne Überschuss, bei teurem Strom kein Start. Ohne Preis-Sensor unsichtbar; mit Preis-Sensor erst nach Einschalten der *Preissteuerung* einstellbar. [Details](docs/anleitung.md#7-strompreis-steuerung-optional)
 - **Beobachtungsmodus:** rechnet und schreibt Logbuch-Einträge („würde starten …“), schreibt aber nichts an die Wärmepumpe. **Neue Einrichtungen starten in diesem Modus.**
 - **Betriebsarten:** Automatik, Aus (gibt die Wärmepumpe in den Normalbetrieb zurück), Manuell (PV-Betrieb an).
@@ -59,6 +61,10 @@ Alle Bilder stammen aus einer laufenden Installation (Buderus WLW186i, GoodWe GW
 **Geräteseite** mit Betriebsart, Sensoren und Verlauf:
 
 ![Geräteseite](docs/screenshots/geraet.png)
+
+## Und evcc?
+
+evcc ist ein Energiemanager fürs ganze Haus (Wallbox, Wärmepumpe, Tarife) und kann die Wärmepumpe inzwischen auch über EMS-ESP steuern. Diese Integration konzentriert sich auf die Wärmepumpe: Kompressorschutz, Akku-Freigabe mit Prognose, Leistungsnachführung und alles direkt in Home Assistant. Wer evcc schon für die Wallbox nutzt, bindet die Wärmepumpe oft am einfachsten dort ein. Nur nie beide auf dieselbe Eingangs-Entität schreiben lassen. [Mehr dazu](docs/anleitung.md#13-häufige-fragen-und-fehlersuche)
 
 ## Voraussetzungen
 
@@ -227,12 +233,18 @@ No YAML, no helpers, no automations: you install it, pick your entities, and put
   - a maximum number of activations per day
   - a daily start window
 - **Immediate stop:** when the battery falls below the stop level (for 2 min), at sunset, or when readings are missing for 10 min.
+- **Restart-proof:** after a Home Assistant or EMS-ESP restart a running mode carries on; a cloud price sensor gets up to 15 minutes to load.
 - **Compressor power control (optional):** in PV mode it adjusts `PV max. compressor power` (`pvmaxcomp`) to the averaged budget (current compressor power + remaining surplus). The limit stays inside a min/max range and changes only every *n* minutes, never second by second.
+- **End after compressor idle (optional):** once the compressor has run in PV mode and then stands still for e.g. 20 minutes, PV mode ends. This prevents a second, useless DHW start. [Details](docs/guide.md#53-switching-off)
 - **Price control (optional):** for dynamic or time-of-use tariffs (Tibber, aWATTar, Octopus …). PV mode even without surplus when electricity is cheap, no start when it is expensive. Invisible without a price sensor; with one, adjustable only after turning on *Price control*. [Details](docs/guide.md#7-price-control-optional)
 - **Observe mode:** it calculates and writes logbook entries ("would start …") but does not write anything to the heat pump. **New installations start in observe mode**, so you can compare it with your current setup first.
 - **Modes:** automatic, off (hands the heat pump back to normal operation), manual (PV mode on).
 - **Dashboard card:** status, live values, a start-condition checklist, the mode buttons and all settings in one card. The integration loads it automatically, so no resource entry is needed.
 - German and English. Diagnostics download for bug reports.
+
+### What about evcc?
+
+evcc is an energy manager for the whole house (wallbox, heat pump, tariffs) and can now also control the heat pump through EMS-ESP. This integration focuses on the heat pump: compressor protection, battery release with forecast, power control, and everything directly in Home Assistant. If you already use evcc for a wallbox, adding the heat pump there is often the simplest option. Just never let both write to the same input entity. [More](docs/guide.md#13-faq-and-troubleshooting)
 
 ### Requirements
 

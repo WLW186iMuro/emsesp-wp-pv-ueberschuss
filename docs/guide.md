@@ -155,6 +155,8 @@ In PV mode the heat pump would otherwise run at full power, even with only 1.5 k
 
 > Note: after starting, the heat pump often ramps up first and only switches to PV mode after a while. The limit takes effect from then on. After a stop, `pvmaxcomp` keeps its last value. It only applies in PV mode.
 
+> Observed on the WLW186i: during a DHW cycle in PV mode the compressor power was at times well above `pvmaxcomp` (e.g. 2 kW with a 1 kW limit). So the limit apparently does not apply in every operating phase. The integration sees this as grid import and ends PV mode as usual after the switch-off delay.
+
 Turn it off with the **Compressor power control** switch on the card.
 
 ## 7. Price control (optional)
@@ -234,7 +236,7 @@ If the sensor has **no unit** (e.g. your own template sensor), pick it under *Co
 ![Settings 1](screenshots/einstellungen-1.png)
 ![Settings 2](screenshots/einstellungen-2.png)
 
-**Settings** (collapsible), in the groups *Surplus*, *Battery & forecast*, *Compressor protection & times*, *Power control* and – with price control on – *Electricity price*. Changes take effect immediately. Below are the **Lift lock time** and **Reset daily counter** buttons.
+**Settings** (collapsible), in the groups *Surplus*, *Battery & forecast*, *Compressor protection & times* (including *End after compressor idle*, see section 5.3), *Power control* and – with price control on – *Electricity price*. Changes take effect immediately. Below are the **Lift lock time** and **Reset daily counter** buttons.
 
 Card options (card editor or YAML):
 
@@ -297,6 +299,7 @@ All settings are entities too (number / switch / select / time). You can change 
 | `binary_sensor.<name>_battery_release` | battery released |
 | `select.<name>_mode` | automatic / off / manual |
 | `switch.<name>_price_control` | price control on/off (only with a price sensor) |
+| `number.<name>_end_after_compressor_idle` | minutes of compressor standstill before PV mode ends (0 = off) |
 
 ![Device page](screenshots/geraet.png)
 
@@ -315,6 +318,12 @@ Reload the page once with Ctrl+F5. With dashboards in YAML mode, add the resourc
 
 **I use evcc / my own automation on the same input.**
 Turn one of them off, or they will keep switching each other.
+
+**After DHW the heat pump pauses, or it starts a second DHW attempt.**
+After every DHW cycle the heat pump switches the compressor off and waits for its own pause (about 15 minutes on the WLW186i) before heating again. This is done by the heat pump itself; the integration cannot change it. If it does not quite reach the higher DHW setpoint in PV mode, it tries again after the pause. *End after compressor idle* (section 5.3), e.g. 20 min, prevents this second start.
+
+**How is this different from evcc?**
+evcc is an energy manager for the whole house (wallbox, heat pump, priorities, tariffs) and now also has an EMS-ESP template. This integration is built specifically for the heat pump: compressor protection (minimum runtime, lock time, starts per day, start window, end after idle), battery release with forecast, power control with its own range and interval, and everything directly in Home Assistant with its own card. If you already use evcc for a wallbox, adding the heat pump there is often the simplest option. Just never let both write to the same input entity at the same time.
 
 **What happens when I remove the integration?**
 If it had set the bit, it resets it to normal operation.

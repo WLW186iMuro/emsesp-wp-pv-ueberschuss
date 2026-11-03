@@ -155,6 +155,8 @@ Im PV-Betrieb würde die Wärmepumpe sonst mit voller Leistung laufen, auch wenn
 
 > Hinweis: Die Wärmepumpe fährt nach dem Start oft erst einmal hoch und wechselt erst nach einiger Zeit in den PV-Modus. Die Grenze wirkt erst dann. Nach einem Stopp bleibt `pvmaxcomp` auf dem letzten Wert. Er gilt nur im PV-Modus.
 
+> Beobachtung an der WLW186i: Während einer Warmwasserladung im PV-Betrieb lag die Kompressorleistung zeitweise deutlich über `pvmaxcomp` (z. B. 2 kW bei 1 kW Grenze). Die Grenze wirkt also offenbar nicht in jeder Betriebsphase. Die Integration erkennt das am Netzbezug und beendet den PV-Betrieb wie gewohnt nach der Ausschaltverzögerung.
+
 Ausschalten lässt sich die Nachführung auf der Karte über den Schalter **Leistungsnachführung**.
 
 ## 7. Strompreis-Steuerung (optional)
@@ -234,7 +236,7 @@ Hat der Sensor **keine Einheit** (z. B. ein eigener Template-Sensor), wählst du
 ![Einstellungen 1](screenshots/einstellungen-1.png)
 ![Einstellungen 2](screenshots/einstellungen-2.png)
 
-**Einstellungen** (aufklappbar) mit den Gruppen *Überschuss*, *Akku & Prognose*, *Kompressorschutz & Zeiten*, *Leistungsnachführung* und – bei eingeschalteter Preissteuerung – *Strompreis*. Änderungen gelten sofort. Darunter liegen die Tasten **Sperrzeit aufheben** und **Tageszähler zurücksetzen**.
+**Einstellungen** (aufklappbar) mit den Gruppen *Überschuss*, *Akku & Prognose*, *Kompressorschutz & Zeiten* (mit *Beenden nach Kompressor-Stillstand*, siehe Abschnitt 5.3), *Leistungsnachführung* und – bei eingeschalteter Preissteuerung – *Strompreis*. Änderungen gelten sofort. Darunter liegen die Tasten **Sperrzeit aufheben** und **Tageszähler zurücksetzen**.
 
 Karten-Optionen (im Karten-Editor oder YAML):
 
@@ -297,6 +299,7 @@ Alle Einstellungen sind auch Entitäten (number / switch / select / time). Du ka
 | `binary_sensor.<name>_akku_freigabe` | Akku freigegeben |
 | `select.<name>_betriebsart` | Automatik / Aus / Manuell |
 | `switch.<name>_preissteuerung` | Preissteuerung an/aus (nur mit Preis-Sensor) |
+| `number.<name>_beenden_nach_kompressor_stillstand` | Minuten Kompressor-Stillstand bis zum Ende des PV-Betriebs (0 = aus) |
 
 ![Geräteseite](screenshots/geraet.png)
 
@@ -315,6 +318,12 @@ Seite einmal mit Strg+F5 neu laden. Bei Dashboards im YAML-Modus die Ressource `
 
 **Ich habe evcc / eine eigene Automation auf demselben Eingang.**
 Eine davon abschalten. Sonst schalten sich beide gegenseitig um.
+
+**Nach dem Warmwasser pausiert die Wärmepumpe, oder sie startet einen zweiten Warmwasser-Versuch.**
+Nach jeder Warmwasserladung schaltet die Wärmepumpe den Kompressor ab und wartet ihre eigene Pause ab (bei der WLW186i rund 15 Minuten), bevor sie wieder heizt. Das macht die Wärmepumpe selbst; die Integration kann es nicht ändern. Erreicht sie im PV-Betrieb das höhere Warmwasser-Soll nicht ganz, versucht sie es nach der Pause erneut. Diesen zweiten Start verhindert *Beenden nach Kompressor-Stillstand* (Abschnitt 5.3), z. B. mit 20 min.
+
+**Was ist der Unterschied zu evcc?**
+evcc ist ein Energiemanager fürs ganze Haus (Wallbox, Wärmepumpe, Prioritäten, Tarife) und hat inzwischen auch eine EMS-ESP-Vorlage. Diese Integration ist speziell für die Wärmepumpe gebaut: Kompressorschutz (Mindestlaufzeit, Sperrzeit, Starts pro Tag, Startfenster, Beenden nach Stillstand), Akku-Freigabe mit Prognose, Leistungsnachführung mit eigenem Bereich und Intervall und alles direkt in Home Assistant mit eigener Karte. Wer evcc schon für die Wallbox nutzt, bindet die Wärmepumpe oft am einfachsten auch dort ein. Wichtig ist nur: nie beide gleichzeitig auf dieselbe Eingangs-Entität schreiben lassen.
 
 **Was passiert beim Entfernen der Integration?**
 Hatte sie das Bit gesetzt, setzt sie es auf Normalbetrieb zurück.
