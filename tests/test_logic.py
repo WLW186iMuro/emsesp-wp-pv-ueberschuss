@@ -45,6 +45,7 @@ class Sim:
         self.peak_configured = False
         self.peak_price = None
         self.avg_price = None
+        self.avg_configured = False
         self.reserve = None
         self.evu = None
         self.observe_writes = True  # emulate the controller: no EVU set in observe mode
@@ -72,6 +73,7 @@ class Sim:
                 peak_configured=self.peak_configured,
                 peak_price_ct=self.peak_price,
                 avg_price_ct=self.avg_price,
+                avg_configured=self.avg_configured,
                 backup_reserve=self.reserve,
                 evu_bits=self.evu,
             ),
@@ -802,6 +804,7 @@ def peak_sim(evu_bit: int = 0, **settings) -> Sim:
     sim.peak_configured = True
     sim.peak_price = 40.0
     sim.avg_price = 30.0  # limit 32.4 ct
+    sim.avg_configured = True
     sim.reserve = 20.0
     sim.soc = 21.0
     sim.grid_w = 1200.0
@@ -1077,3 +1080,145 @@ class TestPeak(unittest.TestCase):
         sim.step()
         self.assertIn("peak_stop:peak_disabled", sim.events)
         self.assertEqual(sim.evu, EVU_OFF, "observe mode never writes")
+
+
+def restart(sim: Sim, minutes: float = 2) -> None:
+    """Unload (or HA stop) as the controller does it, then come back after `minutes`."""
+    sim.state.pause_peak(sim.now)
+    if sim.state.evu_written and sim.evu and sim.evu[0] == "1":
+        sim.evu = logic.set_bit(sim.evu, 0, False)
+        sim.state.evu_written = False
+    sim.state = logic.State.from_dict(sim.state.to_dict())
+    sim.state.pause_peak(sim.now)  # controller load: a block left active by a crash
+    sim.now += timedelta(minutes=minutes)
+    sim.state.peak_import_since = None  # not stored: the import timer starts over
+
+
+class TestPeakRestart(unittest.TestCase):
+    def test_lifted_on_unload(self):
+        sim = peak_sim()
+        sim.run(10.5)
+        self.assertEqual(sim.evu, EVU_ON)
+        self.assertTrue(sim.state.pause_peak(sim.now))
+        self.assertFalse(sim.state.peak_active)
+        self.assertIsNotNone(sim.state.peak_paused_since)
+        self.assertIsNone(sim.state.peak_last_end, "no lock time from a restart")
+
+    def test_continues_when_conditions_met_again(self):
+        sim = peak_sim()
+        sim.run(10.5)
+        since = sim.state.peak_since
+        sim.run(30)
+        restart(sim)
+        self.assertEqual(sim.evu, EVU_OFF)
+        res = sim.run(9.75)
+        self.assertFalse(sim.state.peak_active, "10 min import again first")
+        self.assertTrue(res.peak_checks["lock"])
+        sim.run(0.5)
+        self.assertTrue(sim.state.peak_active)
+        self.assertEqual(sim.evu, EVU_ON)
+        self.assertEqual(sim.state.peak_since, since, "max. duration counts from the first start")
+        self.assertEqual(sim.state.peak_count, 1, "not counted again")
+        self.assertIsNone(sim.state.peak_paused_since)
+
+    def test_continuation_ignores_daily_limit(self):
+        sim = peak_sim(peak_max_per_day=1)
+        sim.run(10.5)
+        restart(sim)
+        res = sim.run(9.75)
+        self.assertTrue(res.peak_checks["limit"])
+        sim.run(0.5)
+        self.assertTrue(sim.state.peak_active)
+
+    def test_not_set_again_when_conditions_gone(self):
+        sim = peak_sim()
+        sim.run(10.5)
+        restart(sim)
+        sim.soc = 50.0  # battery charged meanwhile
+        res = sim.run(30)
+        self.assertFalse(sim.state.peak_active)
+        self.assertFalse(res.peak_checks["battery"])
+        self.assertEqual(sim.evu, EVU_OFF)
+
+    def test_max_duration_from_first_start(self):
+        sim = peak_sim()
+        sim.run(10.5)
+        sim.run(100)
+        restart(sim, minutes=5)
+        sim.run(10.5)
+        self.assertTrue(sim.state.peak_active)
+        sim.run(5)
+        self.assertFalse(sim.state.peak_active)
+        self.assertIn("peak_stop:peak_max", sim.events)
+
+    def test_after_lock_time_it_is_a_new_block(self):
+        sim = peak_sim()
+        sim.run(10.5)
+        restart(sim, minutes=61)
+        res = sim.step()
+        self.assertTrue(res.peak_checks["lock"], "the pause began at the restart")
+        self.assertIsNone(sim.state.peak_paused_since)
+        sim.run(10.5)
+        self.assertTrue(sim.state.peak_active)
+        self.assertEqual(sim.state.peak_count, 2)
+
+    def test_crash_leaves_bit_reset_on_next_tick(self):
+        sim = peak_sim()
+        sim.run(10.5)
+        sim.state = logic.State.from_dict(sim.state.to_dict())  # no clean unload
+        sim.state.pause_peak(sim.now)
+        sim.step()
+        self.assertFalse(sim.state.peak_active)
+        self.assertEqual(sim.evu, EVU_OFF)
+        sim.step()  # bit read back as 0
+        self.assertFalse(sim.state.evu_written)
+
+    def test_pause_persisted(self):
+        sim = peak_sim()
+        sim.run(10.5)
+        sim.state.pause_peak(sim.now)
+        restored = logic.State.from_dict(sim.state.to_dict())
+        self.assertFalse(restored.peak_active)
+        self.assertEqual(restored.peak_paused_since, sim.state.peak_paused_since)
+        self.assertEqual(restored.peak_paused_at, sim.state.peak_paused_at)
+
+
+class TestPeakWithoutAverage(unittest.TestCase):
+    def sim(self, **kw):
+        sim = peak_sim(**kw)
+        sim.avg_configured = False
+        sim.avg_price = None
+        sim.settings.price_expensive_ct = 35.0
+        return sim
+
+    def test_blocks_without_average_check(self):
+        sim = self.sim()
+        res = sim.run(10.5)
+        self.assertNotIn("above_average", res.peak_checks)
+        self.assertTrue(sim.state.peak_active)
+        self.assertIsNone(res.peak_limit_ct)
+
+    def test_lifted_below_expensive_threshold(self):
+        sim = self.sim()
+        sim.run(10.5)
+        sim.peak_price = 35.0  # at the threshold: stays
+        sim.run(5)
+        self.assertTrue(sim.state.peak_active)
+        sim.peak_price = 34.9
+        sim.step()
+        self.assertFalse(sim.state.peak_active)
+        self.assertIn("peak_stop:peak_below_expensive", sim.events)
+        self.assertEqual(sim.evu, EVU_OFF)
+
+    def test_max_duration_still_applies(self):
+        sim = self.sim()
+        sim.run(10.5)
+        sim.run(120)
+        self.assertFalse(sim.state.peak_active)
+        self.assertIn("peak_stop:peak_max", sim.events)
+
+    def test_average_ignored_when_not_configured(self):
+        sim = self.sim()
+        sim.avg_price = 50.0  # would block the check if it were used
+        sim.run(10.5)
+        self.assertTrue(sim.state.peak_active)

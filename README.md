@@ -31,11 +31,11 @@ Du brauchst kein YAML, keine Helfer und keine Automationen: installieren, Entit�
   - maximale Aktivierungen pro Tag
   - Startfenster
 - **Sofort-Stopp:** bei Akku unter der Abschaltgrenze (2 min), bei Sonnenuntergang oder wenn Messwerte 10 min fehlen.
-- **Neustart-fest:** Nach einem Neustart von Home Assistant oder EMS-ESP läuft ein laufender Betrieb weiter; ein Cloud-Preissensor bekommt bis zu 15 Minuten Zeit zum Laden.
+- **Neustart-fest:** Nach einem Neustart von Home Assistant oder EMS-ESP läuft ein laufender Betrieb weiter; ein Cloud-Preissensor bekommt bis zu 15 Minuten Zeit zum Laden. Eine EVU-Sperre (Peak-Modus) wird dagegen aufgehoben und erst wieder gesetzt, wenn alle Bedingungen erneut erfüllt sind.
 - **Leistungsnachführung (optional):** passt im PV-Betrieb `PV max. Kompressorleistung` (`pvmaxcomp`) an das gemittelte Budget an (aktuelle Kompressorleistung + verbleibender Überschuss). Die Grenze bleibt in einem Min/Max-Bereich und ändert sich nur alle *n* Minuten, nicht im Sekundentakt.
 - **Beenden nach Kompressor-Stillstand (optional):** Ist der Kompressor im PV-Betrieb gelaufen und steht danach z. B. 20 Minuten still, endet der PV-Betrieb. Das verhindert einen zweiten, unnötigen Warmwasser-Start. [Details](docs/anleitung.md#53-ausschalten)
 - **Strompreis-Steuerung (optional):** für dynamische oder zeitvariable Tarife (Tibber, aWATTar, Octopus …). Bei günstigem Strom PV-Betrieb auch ohne Überschuss, bei teurem Strom kein Start. Ohne Preis-Sensor unsichtbar; mit Preis-Sensor erst nach Einschalten der *Preissteuerung* einstellbar. [Details](docs/anleitung.md#7-strompreis-steuerung-optional)
-- **Peak-Modus (optional):** setzt bei hohem Stundenpreis und leerem Akku die EVU-Sperre der Wärmepumpe (ein wählbares Bit von z. B. `text.boiler_hpin1opt`, Standard: erstes Zeichen) und hebt sie wieder auf, sobald der Preis sinkt – spätestens nach der maximalen Sperrdauer. [Details](docs/anleitung.md#71-peak-modus-evu-sperre-bei-hohem-preis-und-leerem-akku)
+- **Peak-Modus (optional):** setzt bei hohem Stundenpreis und leerem Akku die EVU-Sperre der Wärmepumpe (ein wählbares Bit von z. B. `text.boiler_hpin1opt`, Standard: erstes Zeichen) und hebt sie wieder auf, sobald der Preis unter einen einstellbaren Anteil des Tagesdurchschnitts sinkt (Standard 108 %, Einstellung „Peak: Preis über Tagesdurchschnitt“; ohne Durchschnittspreis: unter die Teuer-Schwelle) – spätestens nach der maximalen Sperrdauer. Beim Neustart, Update oder Deaktivieren der Integration und beim Beenden von Home Assistant wird die Sperre aufgehoben; danach kommt sie nur wieder, wenn alle Bedingungen erneut erfüllt sind. **Nur einen Eingang ohne angeschlossenen Sperrkontakt verwenden** (siehe Voraussetzungen). [Details](docs/anleitung.md#71-peak-modus-evu-sperre-bei-hohem-preis-und-leerem-akku)
 - **Beobachtungsmodus:** rechnet und schreibt Logbuch-Einträge („würde starten …“), schreibt aber nichts an die Wärmepumpe. **Neue Einrichtungen starten in diesem Modus.**
 - **Betriebsarten:** Automatik, Aus (gibt die Wärmepumpe in den Normalbetrieb zurück), Manuell (PV-Betrieb an).
 - **Dashboard-Karte:** Status, Live-Werte, Checkliste der Startbedingungen, Betriebsart und alle Einstellungen. Die Integration lädt die Karte selbst, ein Ressourcen-Eintrag ist nicht nötig.
@@ -75,6 +75,9 @@ evcc ist ein Energiemanager fürs ganze Haus (Wallbox, Wärmepumpe, Tarife) und 
 - Optional: PV-Prognose (z. B. [Solcast](https://github.com/BJReplay/ha-solcast-solar) „verbleibende Prognose heute“ in kWh und „Leistung in 30 Minuten“ in W)
 - Optional: ein Strompreis-Sensor für dynamische / zeitvariable Tarife (z. B. Tibber, Nord Pool, EPEX Spot, Octopus Germany)
 - An der Wärmepumpe muss der Eingang (z. B. Eingang 4) im Regler (HMC300 / HPC410 / Fachmann-Menü) für PV / SG Ready eingestellt sein.
+- Für den Peak-Modus muss der Eingang (z. B. Eingang 1) im Regler für die EVU-Sperre eingestellt sein.
+
+> ⚠️ **Peak-Modus: nur einen Eingang ohne angeschlossenen Sperrkontakt verwenden.** Hängt an dem Eingang ein Rundsteuerempfänger, die Steuerbox des Netzbetreibers, ein Shelly oder ein anderes Relais, darf er nicht für den Peak-Modus gewählt werden. Die Integration setzt das Bit beim Neustart, Entladen und Entfernen auf `0` und würde damit eine echte EVU-Sperre aufheben.
 
 > ⚠️ Lass nicht mehrere Steuerungen gleichzeitig auf dieselbe Eingangs-Entität schreiben (evcc SG Ready, eigene Automationen, Node-RED …), sonst überschreiben sie sich gegenseitig. Zum Vergleich zuerst den Beobachtungsmodus nutzen.
 
@@ -109,11 +112,11 @@ evcc ist ein Energiemanager fürs ganze Haus (Wallbox, Wärmepumpe, Tarife) und 
 | PV-Prognose in 30 min | Solcast, W | optional |
 | Strompreis-Sensor | z. B. Tibber `EUR/kWh` | optional, nur bei dynamischem / zeitvariablem Tarif |
 | Einheit des Strompreis-Sensors | Automatisch | nur ändern, wenn der Sensor keine Einheit hat; gilt für alle Preis-Sensoren |
-| Eingangs-Option für die EVU-Sperre | `text.boiler_hpin1opt` | optional, Peak-Modus |
+| Eingangs-Option für die EVU-Sperre | `text.boiler_hpin1opt` | optional, Peak-Modus; nur ein Eingang ohne angeschlossenen Sperrkontakt |
 | Bit-Position der EVU-Sperre | `0` | 0 = erstes Zeichen |
 | Akku-Notstromreserve | Reserve in % | Pflicht beim Peak-Modus |
 | Aktueller Stundenpreis | Tibber „Hourly price current“ | Pflicht beim Peak-Modus |
-| Durchschnittspreis heute | Tibber „Average price today“ | Pflicht beim Peak-Modus |
+| Durchschnittspreis heute | Tibber „Average price today“ | optional; ohne ihn entscheidet allein die Teuer-Schwelle. Bei Tarifen mit festen Zeitzonen (Niedrig-/Normal-/Hochtarif) Feld leer lassen |
 
 Später änderbar über **Integration → Konfigurieren**. Wenn das Verhalten im Beobachtungsmodus passt, schalte auf der Karte den **Beobachtungsmodus** aus.
 
@@ -151,10 +154,10 @@ Alle Einstellungen sind Entitäten (number / switch / select / time). Du kannst 
 | Günstig-Schwelle / Teuer-Schwelle | 15 / 35 ct/kWh | nur mit Preissteuerung |
 | Bei teurem Strom beenden | aus | nur mit Preissteuerung |
 | Kompressorleistung bei günstigem Strom | 2,5 kW | nur mit Preissteuerung und Leistungsnachführung |
-| Peak: Preis über Tagesdurchschnitt | 108 % | EVU-Sperre ab Stundenpreis > Ø × Wert, Aufhebung darunter |
+| Peak: Preis über Tagesdurchschnitt | 108 % | EVU-Sperre ab Stundenpreis > Ø × Wert, Aufhebung darunter; nur mit Durchschnittspreis |
 | Peak: Abstand zur Notstromreserve | 2 % | EVU-Sperre ab Ladestand ≤ Reserve + Wert |
 | Peak: Netzbezug seit mindestens | 10 min | verfügbare Leistung ≤ 0 W am Stück |
-| Peak: Max. Dauer der EVU-Sperre | 120 min | danach immer aufheben, egal wie der Preis ist |
+| Peak: Max. Dauer der EVU-Sperre | 120 min | Sicherheitsgrenze: danach immer aufheben, egal wie der Preis ist |
 | Peak: Sperrzeit / Max. Aktivierungen pro Tag | 60 min / 2 | Pause nach der letzten EVU-Sperre |
 
 Passe die Standardwerte an deine Anlage an: die Akku-Kapazität und den Kompressorbereich für deine Wärmepumpe (die Standardwerte passen zu einem 7-kW-Gerät wie der WLW186i-7).
@@ -178,7 +181,7 @@ Ziel      = begrenzt(Budget − Reserve, min, max) bei Akku-Freigabe, sonst min
 
 ## Entfernen
 
-Wenn du die Integration löschst, setzt sie das PV-Bit auf Normalbetrieb zurück, falls sie es gesetzt hatte.
+Wenn du die Integration löschst, setzt sie das PV-Bit auf Normalbetrieb zurück, falls sie es gesetzt hatte. Das Bit der EVU-Sperre (Peak-Modus) setzt sie immer auf `0`.
 
 ## Fehlersuche
 
@@ -244,11 +247,11 @@ No YAML, no helpers, no automations: you install it, pick your entities, and put
   - a maximum number of activations per day
   - a daily start window
 - **Immediate stop:** when the battery falls below the stop level (for 2 min), at sunset, or when readings are missing for 10 min.
-- **Restart-proof:** after a Home Assistant or EMS-ESP restart a running mode carries on; a cloud price sensor gets up to 15 minutes to load.
+- **Restart-proof:** after a Home Assistant or EMS-ESP restart a running mode carries on; a cloud price sensor gets up to 15 minutes to load. An EVU block (peak mode), however, is lifted and only set again once all conditions are met again.
 - **Compressor power control (optional):** in PV mode it adjusts `PV max. compressor power` (`pvmaxcomp`) to the averaged budget (current compressor power + remaining surplus). The limit stays inside a min/max range and changes only every *n* minutes, never second by second.
 - **End after compressor idle (optional):** once the compressor has run in PV mode and then stands still for e.g. 20 minutes, PV mode ends. This prevents a second, useless DHW start. [Details](docs/guide.md#53-switching-off)
 - **Price control (optional):** for dynamic or time-of-use tariffs (Tibber, aWATTar, Octopus …). PV mode even without surplus when electricity is cheap, no start when it is expensive. Invisible without a price sensor; with one, adjustable only after turning on *Price control*. [Details](docs/guide.md#7-price-control-optional)
-- **Peak mode (optional):** sets the heat pump's EVU block (a selectable bit of e.g. `text.boiler_hpin1opt`, default: first character) when the hourly price is high and the battery is empty, and lifts it as soon as the price drops, at the latest after the maximum block duration. [Details](docs/guide.md#71-peak-mode-evu-block-on-high-price-and-empty-battery)
+- **Peak mode (optional):** sets the heat pump's EVU block (a selectable bit of e.g. `text.boiler_hpin1opt`, default: first character) when the hourly price is high and the battery is empty, and lifts it as soon as the price drops below an adjustable share of the daily average (default 108 %, setting “Peak: price above daily average”; without an average price: below the expensive threshold), at the latest after the maximum block duration. On restart, update or disabling the integration and when Home Assistant stops the block is lifted; afterwards it only comes back once all conditions are met again. **Only use an input with no blocking contact wired to it** (see requirements). [Details](docs/guide.md#71-peak-mode-evu-block-on-high-price-and-empty-battery)
 - **Observe mode:** it calculates and writes logbook entries ("would start …") but does not write anything to the heat pump. **New installations start in observe mode**, so you can compare it with your current setup first.
 - **Modes:** automatic, off (hands the heat pump back to normal operation), manual (PV mode on).
 - **Dashboard card:** status, live values, a start-condition checklist, the mode buttons and all settings in one card. The integration loads it automatically, so no resource entry is needed.
@@ -266,6 +269,9 @@ evcc is an energy manager for the whole house (wallbox, heat pump, tariffs) and 
 - Optional: a PV forecast (e.g. [Solcast](https://github.com/BJReplay/ha-solcast-solar) "forecast remaining today" in kWh and "power in 30 minutes" in W)
 - Optional: an electricity price sensor for dynamic / time-of-use tariffs (e.g. Tibber, Nord Pool, EPEX Spot, Octopus Germany)
 - On the heat pump, the input (e.g. input 4) must be configured for PV / SG Ready on the controller (HMC300 / HPC410 / installer menu).
+- For peak mode the input (e.g. input 1) must be configured for the EVU block on the controller.
+
+> ⚠️ **Peak mode: only use an input with no blocking contact wired to it.** If a ripple control receiver, the grid operator's control box, a Shelly or any other relay is connected to the input, do not choose it for peak mode. The integration sets the bit to `0` on restart, unload and removal and would lift a real EVU block.
 
 > ⚠️ Don't run several controllers on the same input entity at the same time (evcc SG Ready, your own automations, Node-RED …), or they will overwrite each other. Use observe mode to compare them first.
 
@@ -300,6 +306,11 @@ evcc is an energy manager for the whole house (wallbox, heat pump, tariffs) and 
 | PV forecast power in 30 min | Solcast, W | optional |
 | Electricity price sensor | e.g. Tibber `EUR/kWh` | optional, only with a dynamic / time-of-use tariff |
 | Unit of the price sensor | Automatic | only change it if the sensor has no unit |
+| Input option for the EVU block | `text.boiler_hpin1opt` | optional, peak mode; only an input with no blocking contact wired to it |
+| EVU block bit position | `0` | 0 = first character |
+| Battery backup reserve | reserve in % | required for peak mode |
+| Current hourly price | Tibber “Hourly price current” | required for peak mode |
+| Average price today | Tibber “Average price today” | optional; without it the expensive threshold alone decides. With time-of-use tariffs (low/standard/peak rate) leave this field empty |
 
 Change these later via **Integration → Configure**. When you're happy with the behaviour in observe mode, turn **Observe mode** off on the card.
 
@@ -337,10 +348,10 @@ All settings are entities (number / switch / select / time), so you can also use
 | Cheap / expensive threshold | 15 / 35 ct/kWh | only with price control |
 | Stop when expensive | off | only with price control |
 | Compressor power on cheap electricity | 2.5 kW | only with price control and power control |
-| Peak: price above daily average | 108 % | EVU block from hourly price > avg × value, lifted below |
+| Peak: price above daily average | 108 % | EVU block from hourly price > avg × value, lifted below; only with an average price |
 | Peak: margin above backup reserve | 2 % | EVU block from SoC ≤ reserve + value |
 | Peak: grid import for at least | 10 min | available power ≤ 0 W without a break |
-| Peak: max. EVU block duration | 120 min | always lifted after this, whatever the price |
+| Peak: max. EVU block duration | 120 min | safety limit: always lifted after this, whatever the price |
 | Peak: lock time / max. activations per day | 60 min / 2 | pause after the last EVU lock activation |
 
 Match the defaults to your system: the battery capacity, and the compressor range for your heat pump (the defaults suit a 7 kW unit such as the WLW186i-7).
@@ -364,7 +375,7 @@ target    = clamp(budget − reserve, min, max) if battery released, otherwise m
 
 ### Removing it
 
-When you delete the integration, it resets the PV bit to normal if it had set it.
+When you delete the integration, it resets the PV bit to normal if it had set it. It always sets the EVU block bit (peak mode) to `0`.
 
 ### Troubleshooting
 

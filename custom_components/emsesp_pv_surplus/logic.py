@@ -69,6 +69,8 @@ R_PEAK = "peak"
 R_PEAK_END = "peak_end"
 R_PEAK_MAX = "peak_max"
 R_PEAK_OFF = "peak_disabled"
+R_PEAK_BELOW = "peak_below_expensive"  # without average price
+R_PEAK_RESTART = "peak_restart"  # integration unloaded or Home Assistant stopped
 
 # Why the heat pump is currently in PV mode
 RUN_PV = "pv"
@@ -226,7 +228,8 @@ class Inputs:
     pvmaxcomp_kw: float | None = None
     price_configured: bool = False  # a price sensor is set up
     price_ct: float | None = None  # current price in cent (1/100 currency) per kWh
-    peak_configured: bool = False  # EVU input, reserve and both peak prices are set up
+    peak_configured: bool = False  # EVU input, reserve and the hourly price are set up
+    avg_configured: bool = False  # average price set up (optional for the EVU block)
     peak_price_ct: float | None = None  # hourly price, cent per kWh
     avg_price_ct: float | None = None  # average price today, cent per kWh
     backup_reserve: float | None = None  # battery backup reserve in %
@@ -310,6 +313,9 @@ class State:
     peak_last_end: datetime | None = None
     peak_count: int = 0
     evu_written: bool = False  # EVU bit was (to be) set by us and is not confirmed back at 0
+    # EVU block lifted by a restart: start of that block and when it was lifted
+    peak_paused_since: datetime | None = None
+    peak_paused_at: datetime | None = None
 
     surplus_since: datetime | None = None
     deficit_since: datetime | None = None
@@ -342,6 +348,8 @@ class State:
             "peak_last_end": _dt_to_str(self.peak_last_end),
             "peak_count": self.peak_count,
             "evu_written": self.evu_written,
+            "peak_paused_since": _dt_to_str(self.peak_paused_since),
+            "peak_paused_at": _dt_to_str(self.peak_paused_at),
         }
 
     @classmethod
@@ -370,9 +378,24 @@ class State:
         state.peak_last_end = _str_to_dt(data.get("peak_last_end"))
         state.peak_count = int(data.get("peak_count", 0) or 0)
         state.evu_written = bool(data.get("evu_written", False))
+        state.peak_paused_since = _str_to_dt(data.get("peak_paused_since"))
+        state.peak_paused_at = _str_to_dt(data.get("peak_paused_at"))
         if state.peak_active and state.peak_since is None:
             state.peak_active = False
         return state
+
+    def pause_peak(self, now: datetime) -> bool:
+        """Lift an EVU block for a restart. It only comes back once all conditions are met again.
+
+        Returns True if a block was active.
+        """
+        if not self.peak_active:
+            return False
+        self.peak_paused_since = self.peak_since or now
+        self.peak_paused_at = now
+        self.peak_active = False
+        self.peak_since = None
+        return True
 
 
 @dataclass
@@ -632,7 +655,8 @@ def evaluate(
     # Price control is a precondition, not a check: the card hides the EVU block while it is off
     peak_enabled = inp.peak_configured and settings.price_control and settings.mode == MODE_AUTO
     peak_price = _held(state, "peak", inp.peak_price_ct, now) if inp.peak_configured else None
-    avg_price = _held(state, "avg", inp.avg_price_ct, now) if inp.peak_configured else None
+    avg_used = inp.peak_configured and inp.avg_configured
+    avg_price = _held(state, "avg", inp.avg_price_ct, now) if avg_used else None
     peak_limit = avg_price * settings.peak_factor_pct / 100.0 if avg_price is not None else None
     if available is not None and available <= 0:
         state.peak_import_since = state.peak_import_since or now
@@ -641,6 +665,19 @@ def evaluate(
     peak_lock_until = (
         state.peak_last_end + timedelta(minutes=settings.peak_lock_min) if state.peak_last_end else None
     )
+    # A block lifted by a restart continues if it comes back within the lock time and
+    # before its maximum duration: no lock time, not counted again, same start
+    resume_since = None
+    if state.peak_paused_since and state.peak_paused_at:
+        if (
+            now - state.peak_paused_at < timedelta(minutes=settings.peak_lock_min)
+            and now - state.peak_paused_since < timedelta(minutes=settings.peak_max_duration_min)
+        ):
+            resume_since = state.peak_paused_since
+        else:
+            state.peak_last_end = state.peak_last_end or state.peak_paused_at
+            state.peak_paused_since = state.peak_paused_at = None
+            peak_lock_until = state.peak_last_end + timedelta(minutes=settings.peak_lock_min)
     evu_ok = valid_bits(inp.evu_bits, evu_bit)
     peak_checks: dict[str, bool] = {}
     if inp.peak_configured:
@@ -648,14 +685,19 @@ def evaluate(
             "sensors": sensors_ok and evu_ok,  # grid, battery, SoC and the EVU input
             "pv_off": settings.mode == MODE_AUTO and not state.requested,
             "expensive": peak_price is not None and peak_price >= settings.price_expensive_ct,
-            "above_average": peak_price is not None and peak_limit is not None and peak_price > peak_limit,
+        }
+        if avg_used:
+            peak_checks["above_average"] = (
+                peak_price is not None and peak_limit is not None and peak_price > peak_limit
+            )
+        peak_checks |= {
             "battery": (
                 inp.soc is not None
                 and inp.backup_reserve is not None
                 and inp.soc <= inp.backup_reserve + settings.peak_soc_margin
             ),
             "lock": peak_lock_until is None or now >= peak_lock_until,
-            "limit": state.peak_count < int(settings.peak_max_per_day),
+            "limit": resume_since is not None or state.peak_count < int(settings.peak_max_per_day),
             "no_surplus": sensors_ok
             and state.peak_import_since is not None
             and now - state.peak_import_since >= timedelta(minutes=settings.peak_import_min),
@@ -676,12 +718,16 @@ def evaluate(
             peak_release(R_SENSOR)
         elif now - since >= timedelta(minutes=settings.peak_max_duration_min):
             peak_release(R_PEAK_MAX)  # whatever the price is
-        elif not (peak_price is not None and peak_limit is not None and peak_price >= peak_limit):
+        elif avg_used and not (peak_price is not None and peak_limit is not None and peak_price >= peak_limit):
             peak_release(R_PEAK_END)
+        elif not avg_used and not (peak_price is not None and peak_price >= settings.price_expensive_ct):
+            peak_release(R_PEAK_BELOW)
     elif peak_enabled and peak_checks and all(peak_checks.values()):
         state.peak_active = True
-        state.peak_since = now
-        state.peak_count += 1
+        state.peak_since = resume_since or now
+        if resume_since is None:
+            state.peak_count += 1
+        state.peak_paused_since = state.peak_paused_at = None
         result.peak_started = True
         result.peak_reason = R_PEAK
     if state.peak_active and not settings.observe:

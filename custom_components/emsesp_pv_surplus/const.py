@@ -28,12 +28,11 @@ CONF_EVU_BIT = "evu_bit"
 CONF_BACKUP_RESERVE_ENTITY = "backup_reserve_entity"
 CONF_HOURLY_PRICE_ENTITY = "hourly_price_entity"
 CONF_AVG_PRICE_ENTITY = "avg_price_entity"
-# All four are needed for the EVU block (peak mode)
+# All three are needed for the EVU block (peak mode); the average price is optional
 PEAK_ENTITIES = [
     CONF_EVU_ENTITY,
     CONF_BACKUP_RESERVE_ENTITY,
     CONF_HOURLY_PRICE_ENTITY,
-    CONF_AVG_PRICE_ENTITY,
 ]
 
 GRID_IMPORT_POSITIVE = "import_positive"

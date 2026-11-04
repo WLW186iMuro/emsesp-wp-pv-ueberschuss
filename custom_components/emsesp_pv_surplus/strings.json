@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "PV surplus for the heat pump",
-        "description": "Pick the entities from EMS-ESP, grid meter, battery and optionally the PV forecast. After setup the integration starts in observe mode: it calculates and logs, but writes nothing to the heat pump.",
+        "description": "Pick the entities from EMS-ESP, grid meter, battery and optionally the PV forecast. After setup the integration starts in observe mode: it calculates and logs, but writes nothing to the heat pump. Peak mode: only use an EVU input with no blocking contact wired to it (ripple control receiver, control box, Shelly …).",
         "data": {
           "name": "Name",
           "signal_entity": "EMS-ESP input option (e.g. hpin4opt)",
@@ -36,18 +36,18 @@
           "forecast_30min_entity": "e.g. Solcast “Power in 30 minutes” (W).",
           "price_entity": "Current electricity price, e.g. from Tibber, Nord Pool, EPEX Spot or Octopus. Leave empty without a dynamic tariff – then there are no price settings.",
           "price_unit": "“Automatic” detects €/kWh, ct/kWh and €/MWh from the sensor. Only change it if the sensor has no unit. Applies to all price sensors.",
-          "evu_entity": "Peak mode: text entity holding the bit pattern of the EVU input. The selected bit is set to 1 while the price is high and the battery is empty (e.g. 1xxxxxxxxxxxxxx = EVU block); the other characters stay unchanged. Only together with backup reserve, hourly price and average price.",
+          "evu_entity": "⚠️ Only pick an input with no blocking contact wired to it (e.g. ripple control receiver, control box, Shelly or any other relay) – the integration sets the bit to 0 on restart, unload and removal and would lift a real EVU block. Peak mode: text entity holding the bit pattern of the EVU input. The selected bit is set to 1 while the price is high and the battery is empty (e.g. 1xxxxxxxxxxxxxx = EVU block); the other characters stay unchanged. Only together with backup reserve and hourly price.",
           "evu_bit": "0 = first character. Usually 0 for the EVU block on Buderus/Bosch/Junkers.",
           "backup_reserve_entity": "Reserve the battery does not go below. The EVU block is possible once the state of charge is at most reserve + margin.",
           "hourly_price_entity": "€/kWh or ct/kWh, e.g. Tibber “Hourly price current”.",
-          "avg_price_entity": "€/kWh or ct/kWh, e.g. Tibber “Average price today”."
+          "avg_price_entity": "€/kWh or ct/kWh, e.g. Tibber “Average price today”. With an average price, peak mode only blocks when the hourly price is also above the daily average × factor, and lifts the block below it. Without it the expensive threshold alone decides."
         }
       }
     },
     "error": {
       "hp_power_required": "Compressor power control also needs the current compressor power.",
       "price_unit_unknown": "The unit of the price sensor was not recognised. Please choose the unit below manually.",
-      "peak_incomplete": "Peak mode needs all four fields: EVU input, backup reserve, hourly price and average price."
+      "peak_incomplete": "Peak mode needs the EVU input, backup reserve and hourly price; the average price is optional."
     },
     "abort": {
       "already_configured": "This input entity is already set up."
@@ -57,6 +57,7 @@
     "step": {
       "init": {
         "title": "Change source entities",
+        "description": "Peak mode: only use an EVU input with no blocking contact wired to it (ripple control receiver, control box, Shelly …). The integration sets the bit to 0 on restart, unload and removal.",
         "data": {
           "signal_entity": "EMS-ESP input option (e.g. hpin4opt)",
           "signal_bit": "Bit position",
@@ -87,18 +88,18 @@
           "forecast_30min_entity": "e.g. Solcast “Power in 30 minutes” (W).",
           "price_entity": "Current electricity price, e.g. from Tibber, Nord Pool, EPEX Spot or Octopus. Leave empty without a dynamic tariff – then there are no price settings.",
           "price_unit": "“Automatic” detects €/kWh, ct/kWh and €/MWh from the sensor. Only change it if the sensor has no unit. Applies to all price sensors.",
-          "evu_entity": "Peak mode: text entity holding the bit pattern of the EVU input. The selected bit is set to 1 while the price is high and the battery is empty (e.g. 1xxxxxxxxxxxxxx = EVU block); the other characters stay unchanged. Only together with backup reserve, hourly price and average price.",
+          "evu_entity": "⚠️ Only pick an input with no blocking contact wired to it (e.g. ripple control receiver, control box, Shelly or any other relay) – the integration sets the bit to 0 on restart, unload and removal and would lift a real EVU block. Peak mode: text entity holding the bit pattern of the EVU input. The selected bit is set to 1 while the price is high and the battery is empty (e.g. 1xxxxxxxxxxxxxx = EVU block); the other characters stay unchanged. Only together with backup reserve and hourly price.",
           "evu_bit": "0 = first character. Usually 0 for the EVU block on Buderus/Bosch/Junkers.",
           "backup_reserve_entity": "Reserve the battery does not go below. The EVU block is possible once the state of charge is at most reserve + margin.",
           "hourly_price_entity": "€/kWh or ct/kWh, e.g. Tibber “Hourly price current”.",
-          "avg_price_entity": "€/kWh or ct/kWh, e.g. Tibber “Average price today”."
+          "avg_price_entity": "€/kWh or ct/kWh, e.g. Tibber “Average price today”. With an average price, peak mode only blocks when the hourly price is also above the daily average × factor, and lifts the block below it. Without it the expensive threshold alone decides."
         }
       }
     },
     "error": {
       "hp_power_required": "Compressor power control also needs the current compressor power.",
       "price_unit_unknown": "The unit of the price sensor was not recognised. Please choose the unit below manually.",
-      "peak_incomplete": "Peak mode needs all four fields: EVU input, backup reserve, hourly price and average price."
+      "peak_incomplete": "Peak mode needs the EVU input, backup reserve and hourly price; the average price is optional."
     }
   },
   "selector": {

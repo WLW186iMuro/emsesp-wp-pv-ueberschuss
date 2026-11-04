@@ -232,10 +232,7 @@ async def test_config_flow_peak_needs_all_fields(hass: HomeAssistant, sources) -
         result["flow_id"], {"name": "WP", **BASE, "evu_entity": EVU, "hourly_price_entity": HOURLY}
     )
     assert result["type"] is FlowResultType.FORM
-    assert result["errors"] == {
-        "backup_reserve_entity": "peak_incomplete",
-        "avg_price_entity": "peak_incomplete",
-    }
+    assert result["errors"] == {"backup_reserve_entity": "peak_incomplete"}
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {"name": "WP", **BASE, **PEAK})
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"]["evu_entity"] == EVU
@@ -330,6 +327,91 @@ async def test_removing_entry_lifts_evu_block(hass: HomeAssistant, sources) -> N
     assert await hass.config_entries.async_remove(entry.entry_id)
     await hass.async_block_till_done()
     assert calls[-1].data == {"entity_id": EVU, "value": "000000000001010"}
+
+
+async def test_removing_entry_resets_evu_bit_not_set_by_us(hass: HomeAssistant, sources) -> None:
+    calls = async_mock_service(hass, "text", "set_value")
+    entry = await _setup(hass, **PEAK)
+    hass.states.async_set(EVU, "100000000001010")
+    assert await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+    assert calls[-1].data == {"entity_id": EVU, "value": "000000000001010"}
+
+
+async def _peak_blocked(hass: HomeAssistant, entry: MockConfigEntry, calls) -> None:
+    await hass.services.async_call("switch", "turn_off", {"entity_id": _eid(hass, entry, "switch", "observe")}, blocking=True)
+    await _peak_ready(hass, entry)
+    await entry.runtime_data._async_tick()
+    await hass.async_block_till_done()
+    assert calls[-1].data == {"entity_id": EVU, "value": "100000000001010"}
+    hass.states.async_set(EVU, "100000000001010")
+
+
+async def test_unload_lifts_evu_block_and_restart_waits(hass: HomeAssistant, sources) -> None:
+    calls = async_mock_service(hass, "text", "set_value")
+    entry = await _setup(hass, **PEAK)
+    await _peak_blocked(hass, entry, calls)
+    since = entry.runtime_data.state.peak_since
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert calls[-1].data == {"entity_id": EVU, "value": "000000000001010"}
+    hass.states.async_set(EVU, "000000000001010")
+
+    # After the restart the block is not set again right away (import timer starts over)
+    n = len(calls)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    controller = entry.runtime_data
+    await controller._async_tick()
+    await hass.async_block_till_done()
+    assert controller.state.peak_active is False
+    assert controller.state.peak_paused_since == since
+    assert all(c.data["entity_id"] != EVU for c in calls[n:])
+
+    # All conditions met again: it continues as the same block
+    controller.state.peak_import_since = dt_util.now() - timedelta(minutes=11)
+    await controller._async_tick()
+    await hass.async_block_till_done()
+    assert controller.state.peak_active is True
+    assert controller.state.peak_since == since
+    assert controller.state.peak_count == 1
+    assert calls[-1].data == {"entity_id": EVU, "value": "100000000001010"}
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_home_assistant_stop_lifts_evu_block(hass: HomeAssistant, sources) -> None:
+    from homeassistant.const import EVENT_HOMEASSISTANT_STOP  # noqa: PLC0415
+
+    calls = async_mock_service(hass, "text", "set_value")
+    entry = await _setup(hass, **PEAK)
+    await _peak_blocked(hass, entry, calls)
+    hass.bus.async_fire(EVENT_HOMEASSISTANT_STOP)
+    await hass.async_block_till_done()
+    assert calls[-1].data == {"entity_id": EVU, "value": "000000000001010"}
+    assert entry.runtime_data.state.peak_active is False
+    assert entry.runtime_data.state.evu_written is False
+    # the listener has fired; unloading must not try to remove it again
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_peak_without_average_price(hass: HomeAssistant, sources) -> None:
+    calls = async_mock_service(hass, "text", "set_value")
+    peak = {k: v for k, v in PEAK.items() if k != "avg_price_entity"}
+    entry = await _setup(hass, **peak)
+    assert _eid(hass, entry, "number", "peak_factor_pct") is None
+    assert _eid(hass, entry, "number", "peak_max_duration_min") is not None
+    await _peak_blocked(hass, entry, calls)
+    attrs = hass.states.get(_eid(hass, entry, "sensor", "status")).attributes
+    assert "above_average" not in attrs["peak_checks"]
+    # below the expensive threshold the block is lifted
+    hass.states.async_set(HOURLY, "0.20", {"unit_of_measurement": "EUR/kWh"})
+    await hass.async_block_till_done()
+    await entry.runtime_data._async_tick()
+    await hass.async_block_till_done()
+    assert entry.runtime_data.state.peak_active is False
+    assert calls[-1].data == {"entity_id": EVU, "value": "000000000001010"}
+    assert await hass.config_entries.async_unload(entry.entry_id)
 
 
 async def test_observe_mode_logs_peak(hass: HomeAssistant, sources) -> None:

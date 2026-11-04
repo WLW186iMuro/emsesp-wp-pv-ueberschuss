@@ -7,8 +7,8 @@ import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP, STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_send
@@ -102,6 +102,8 @@ _TEXT = {
             "peak_end": "Strompreis wieder unter Tagesdurchschnitt",
             "peak_max": "maximale Sperrdauer erreicht",
             "peak_disabled": "Preissteuerung aus oder Betriebsart nicht Automatik",
+            "peak_below_expensive": "Strompreis wieder unter der Teuer-Schwelle",
+            "peak_restart": "Integration wird entladen oder Home Assistant beendet",
         },
     },
     "en": {
@@ -139,6 +141,8 @@ _TEXT = {
             "peak_end": "price back below the daily average",
             "peak_max": "maximum block duration reached",
             "peak_disabled": "price control off or mode not automatic",
+            "peak_below_expensive": "price back below the expensive threshold",
+            "peak_restart": "integration unloaded or Home Assistant stopping",
         },
     },
 }
@@ -162,6 +166,7 @@ class PvSurplusController:
         self.last_message_at: datetime | None = None
         self._store: Store = Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}")
         self._unsubs: list = []
+        self._unsub_stop = None
         self._running = False
         self._prev_mode: str | None = None
         self._last_signal_write: datetime | None = None
@@ -193,8 +198,13 @@ class PvSurplusController:
 
     @property
     def has_peak(self) -> bool:
-        """EVU block (peak mode): needs the EVU input, the reserve and both peak prices."""
+        """EVU block (peak mode): needs the EVU input, the reserve and the hourly price."""
         return all(self.cfg.get(key) for key in PEAK_ENTITIES)
+
+    @property
+    def has_peak_avg(self) -> bool:
+        """Average price for the EVU block; without it the expensive threshold decides alone."""
+        return self.has_peak and bool(self.cfg.get(CONF_AVG_PRICE_ENTITY))
 
     @property
     def has_price_settings(self) -> bool:
@@ -210,6 +220,9 @@ class PvSurplusController:
         data = await self._store.async_load() or {}
         self.settings = Settings.from_dict(data.get("settings"))
         self.state = State.from_dict(data.get("state"))
+        # After a crash the EVU block may still be marked active. It only comes back once
+        # all conditions are met again; evu_written makes the next tick reset the bit.
+        self.state.pause_peak(dt_util.now())
         self._prev_mode = self.settings.mode
         self._saved_snapshot = self._snapshot()
 
@@ -224,10 +237,44 @@ class PvSurplusController:
 
         self._unsubs.append(async_at_started(self.hass, _started))
 
+        async def _ha_stop(_event: Event) -> None:
+            self._unsub_stop = None  # a fired listener must not be removed again
+            await self.async_release_peak()
+
+        self._unsub_stop = self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _ha_stop)
+
     async def async_stop(self) -> None:
         for unsub in self._unsubs:
             unsub()
         self._unsubs.clear()
+        if self._unsub_stop:
+            self._unsub_stop()
+            self._unsub_stop = None
+        await self.async_release_peak()
+
+    async def async_release_peak(self) -> None:
+        """Lift the EVU block on unload (restart, update, disable) and when Home Assistant stops.
+
+        After the restart the block only comes back once all conditions are met again.
+        """
+        now = dt_util.now()
+        was_active = self.state.pause_peak(now)
+        if was_active:
+            t = self._t
+            reason = t["reasons"]["peak_restart"]
+            await self._log(t["observe"] + t["would_peak_stop"].format(reason=reason)
+                            if self.settings.observe else t["peak_stop"].format(reason=reason))
+        evu = self._state_obj(CONF_EVU_ENTITY) if self.has_peak else None
+        if (
+            self.state.evu_written
+            and evu is not None
+            and valid_bits(evu.state, self.evu_bit)
+            and evu.state[self.evu_bit] == "1"
+        ):
+            if await self._set_evu(set_bit(evu.state, self.evu_bit, False), now):
+                self.state.evu_written = False
+        elif self.state.evu_written and evu is not None and valid_bits(evu.state, self.evu_bit):
+            self.state.evu_written = False  # already 0
         await self._store.async_save(self._snapshot())
 
     # --------------------------------------------------------------- settings
@@ -343,6 +390,7 @@ class PvSurplusController:
             price_configured=self.has_price,
             price_ct=self._price_ct(),
             peak_configured=self.has_peak,
+            avg_configured=self.has_peak_avg,
             peak_price_ct=self._peak_price_ct(CONF_HOURLY_PRICE_ENTITY),
             avg_price_ct=self._peak_price_ct(CONF_AVG_PRICE_ENTITY),
             backup_reserve=self._number(CONF_BACKUP_RESERVE_ENTITY)[0] if self.has_peak else None,

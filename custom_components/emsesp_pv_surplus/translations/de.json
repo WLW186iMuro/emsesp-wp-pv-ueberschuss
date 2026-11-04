@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "PV-Überschuss für die Wärmepumpe",
-        "description": "Wählt die Entitäten von EMS-ESP, Netzzähler, Akku und optional der PV-Prognose. Nach der Einrichtung startet die Integration im Beobachtungsmodus: Sie rechnet und protokolliert, schreibt aber nichts an die Wärmepumpe.",
+        "description": "Wählt die Entitäten von EMS-ESP, Netzzähler, Akku und optional der PV-Prognose. Nach der Einrichtung startet die Integration im Beobachtungsmodus: Sie rechnet und protokolliert, schreibt aber nichts an die Wärmepumpe. Peak-Modus: Als EVU-Eingang nur einen Eingang ohne angeschlossenen Sperrkontakt (Rundsteuerempfänger, Steuerbox, Shelly …) verwenden.",
         "data": {
           "name": "Name",
           "signal_entity": "EMS-ESP Eingangs-Option (z. B. hpin4opt)",
@@ -36,18 +36,18 @@
           "forecast_30min_entity": "z. B. Solcast „Leistung in 30 Minuten“ (W).",
           "price_entity": "Aktueller Strompreis, z. B. von Tibber, Nord Pool, EPEX Spot oder Octopus. Leer lassen, wenn du keinen dynamischen Tarif hast – dann gibt es keine Preis-Einstellungen.",
           "price_unit": "„Automatisch“ erkennt €/kWh, ct/kWh und €/MWh aus dem Sensor. Nur ändern, wenn der Sensor keine Einheit hat. Gilt für alle Preis-Sensoren.",
-          "evu_entity": "Peak-Modus: Text-Entität mit dem Bitmuster des EVU-Eingangs. Das gewählte Bit wird bei hohem Strompreis und leerem Akku auf 1 gesetzt (z. B. 1xxxxxxxxxxxxxx = EVU-Sperre), die übrigen Zeichen bleiben unverändert. Nur zusammen mit Notstromreserve, Stundenpreis und Durchschnittspreis.",
+          "evu_entity": "⚠️ Nur einen Eingang wählen, an dem kein Sperrkontakt angeschlossen ist (z. B. Rundsteuerempfänger, Steuerbox, Shelly oder anderes Relais) – die Integration setzt das Bit beim Neustart, Entladen und Entfernen auf 0 und würde eine echte EVU-Sperre aufheben. Peak-Modus: Text-Entität mit dem Bitmuster des EVU-Eingangs. Das gewählte Bit wird bei hohem Strompreis und leerem Akku auf 1 gesetzt (z. B. 1xxxxxxxxxxxxxx = EVU-Sperre), die übrigen Zeichen bleiben unverändert. Nur zusammen mit Notstromreserve und Stundenpreis.",
           "evu_bit": "0 = erstes Zeichen. Bei Buderus/Bosch/Junkers für die EVU-Sperre meist 0.",
           "backup_reserve_entity": "Reserve, die der Akku nicht unterschreitet. Die EVU-Sperre ist möglich, sobald der Ladestand höchstens Reserve + Abstand beträgt.",
           "hourly_price_entity": "€/kWh oder ct/kWh, z. B. Tibber „Hourly price current“.",
-          "avg_price_entity": "€/kWh oder ct/kWh, z. B. Tibber „Average price today“."
+          "avg_price_entity": "€/kWh oder ct/kWh, z. B. Tibber „Average price today“. Mit Durchschnittspreis sperrt der Peak-Modus nur, wenn der Stundenpreis zusätzlich über dem Tagesdurchschnitt × Faktor liegt, und hebt die Sperre darunter auf. Ohne ihn entscheidet allein die Teuer-Schwelle."
         }
       }
     },
     "error": {
       "hp_power_required": "Für die Leistungsnachführung wird auch die aktuelle Kompressorleistung benötigt.",
       "price_unit_unknown": "Die Einheit des Strompreis-Sensors wurde nicht erkannt. Bitte die Einheit unten von Hand auswählen.",
-      "peak_incomplete": "Für den Peak-Modus werden alle vier Felder benötigt: EVU-Eingang, Notstromreserve, Stundenpreis und Durchschnittspreis."
+      "peak_incomplete": "Für den Peak-Modus werden EVU-Eingang, Notstromreserve und Stundenpreis benötigt; der Durchschnittspreis ist optional."
     },
     "abort": {
       "already_configured": "Für diese Eingangs-Entität gibt es schon eine Einrichtung."
@@ -57,6 +57,7 @@
     "step": {
       "init": {
         "title": "Quell-Entitäten ändern",
+        "description": "Peak-Modus: Als EVU-Eingang nur einen Eingang ohne angeschlossenen Sperrkontakt (Rundsteuerempfänger, Steuerbox, Shelly …) verwenden. Die Integration setzt das Bit beim Neustart, Entladen und Entfernen auf 0.",
         "data": {
           "signal_entity": "EMS-ESP Eingangs-Option (z. B. hpin4opt)",
           "signal_bit": "Bit-Position",
@@ -87,18 +88,18 @@
           "forecast_30min_entity": "z. B. Solcast „Leistung in 30 Minuten“ (W).",
           "price_entity": "Aktueller Strompreis, z. B. von Tibber, Nord Pool, EPEX Spot oder Octopus. Leer lassen, wenn du keinen dynamischen Tarif hast – dann gibt es keine Preis-Einstellungen.",
           "price_unit": "„Automatisch“ erkennt €/kWh, ct/kWh und €/MWh aus dem Sensor. Nur ändern, wenn der Sensor keine Einheit hat. Gilt für alle Preis-Sensoren.",
-          "evu_entity": "Peak-Modus: Text-Entität mit dem Bitmuster des EVU-Eingangs. Das gewählte Bit wird bei hohem Strompreis und leerem Akku auf 1 gesetzt (z. B. 1xxxxxxxxxxxxxx = EVU-Sperre), die übrigen Zeichen bleiben unverändert. Nur zusammen mit Notstromreserve, Stundenpreis und Durchschnittspreis.",
+          "evu_entity": "⚠️ Nur einen Eingang wählen, an dem kein Sperrkontakt angeschlossen ist (z. B. Rundsteuerempfänger, Steuerbox, Shelly oder anderes Relais) – die Integration setzt das Bit beim Neustart, Entladen und Entfernen auf 0 und würde eine echte EVU-Sperre aufheben. Peak-Modus: Text-Entität mit dem Bitmuster des EVU-Eingangs. Das gewählte Bit wird bei hohem Strompreis und leerem Akku auf 1 gesetzt (z. B. 1xxxxxxxxxxxxxx = EVU-Sperre), die übrigen Zeichen bleiben unverändert. Nur zusammen mit Notstromreserve und Stundenpreis.",
           "evu_bit": "0 = erstes Zeichen. Bei Buderus/Bosch/Junkers für die EVU-Sperre meist 0.",
           "backup_reserve_entity": "Reserve, die der Akku nicht unterschreitet. Die EVU-Sperre ist möglich, sobald der Ladestand höchstens Reserve + Abstand beträgt.",
           "hourly_price_entity": "€/kWh oder ct/kWh, z. B. Tibber „Hourly price current“.",
-          "avg_price_entity": "€/kWh oder ct/kWh, z. B. Tibber „Average price today“."
+          "avg_price_entity": "€/kWh oder ct/kWh, z. B. Tibber „Average price today“. Mit Durchschnittspreis sperrt der Peak-Modus nur, wenn der Stundenpreis zusätzlich über dem Tagesdurchschnitt × Faktor liegt, und hebt die Sperre darunter auf. Ohne ihn entscheidet allein die Teuer-Schwelle."
         }
       }
     },
     "error": {
       "hp_power_required": "Für die Leistungsnachführung wird auch die aktuelle Kompressorleistung benötigt.",
       "price_unit_unknown": "Die Einheit des Strompreis-Sensors wurde nicht erkannt. Bitte die Einheit unten von Hand auswählen.",
-      "peak_incomplete": "Für den Peak-Modus werden alle vier Felder benötigt: EVU-Eingang, Notstromreserve, Stundenpreis und Durchschnittspreis."
+      "peak_incomplete": "Für den Peak-Modus werden EVU-Eingang, Notstromreserve und Stundenpreis benötigt; der Durchschnittspreis ist optional."
     }
   },
   "selector": {

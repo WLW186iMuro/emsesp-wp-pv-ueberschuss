@@ -65,8 +65,8 @@ FIELDS = {
     "evu_entity": (
         "EMS-ESP Eingangs-Option für die EVU-Sperre (optional, z. B. hpin1opt)",
         "EMS-ESP input option for the EVU block (optional, e.g. hpin1opt)",
-        "Peak-Modus: Text-Entität mit dem Bitmuster des EVU-Eingangs. Das gewählte Bit wird bei hohem Strompreis und leerem Akku auf 1 gesetzt (z. B. 1xxxxxxxxxxxxxx = EVU-Sperre), die übrigen Zeichen bleiben unverändert. Nur zusammen mit Notstromreserve, Stundenpreis und Durchschnittspreis.",
-        "Peak mode: text entity holding the bit pattern of the EVU input. The selected bit is set to 1 while the price is high and the battery is empty (e.g. 1xxxxxxxxxxxxxx = EVU block); the other characters stay unchanged. Only together with backup reserve, hourly price and average price.",
+        "⚠️ Nur einen Eingang wählen, an dem kein Sperrkontakt angeschlossen ist (z. B. Rundsteuerempfänger, Steuerbox, Shelly oder anderes Relais) – die Integration setzt das Bit beim Neustart, Entladen und Entfernen auf 0 und würde eine echte EVU-Sperre aufheben. Peak-Modus: Text-Entität mit dem Bitmuster des EVU-Eingangs. Das gewählte Bit wird bei hohem Strompreis und leerem Akku auf 1 gesetzt (z. B. 1xxxxxxxxxxxxxx = EVU-Sperre), die übrigen Zeichen bleiben unverändert. Nur zusammen mit Notstromreserve und Stundenpreis.",
+        "⚠️ Only pick an input with no blocking contact wired to it (e.g. ripple control receiver, control box, Shelly or any other relay) – the integration sets the bit to 0 on restart, unload and removal and would lift a real EVU block. Peak mode: text entity holding the bit pattern of the EVU input. The selected bit is set to 1 while the price is high and the battery is empty (e.g. 1xxxxxxxxxxxxxx = EVU block); the other characters stay unchanged. Only together with backup reserve and hourly price.",
     ),
     "evu_bit": (
         "Bit-Position der EVU-Sperre",
@@ -89,8 +89,8 @@ FIELDS = {
     "avg_price_entity": (
         "Durchschnittspreis heute (optional, für den Peak-Modus)",
         "Average price today (optional, for peak mode)",
-        "€/kWh oder ct/kWh, z. B. Tibber „Average price today“.",
-        "€/kWh or ct/kWh, e.g. Tibber “Average price today”.",
+        "€/kWh oder ct/kWh, z. B. Tibber „Average price today“. Mit Durchschnittspreis sperrt der Peak-Modus nur, wenn der Stundenpreis zusätzlich über dem Tagesdurchschnitt × Faktor liegt, und hebt die Sperre darunter auf. Ohne ihn entscheidet allein die Teuer-Schwelle.",
+        "€/kWh or ct/kWh, e.g. Tibber “Average price today”. With an average price, peak mode only blocks when the hourly price is also above the daily average × factor, and lifts the block below it. Without it the expensive threshold alone decides.",
     ),
 }
 
@@ -204,10 +204,14 @@ MODES = {
 TEXT = {
     "user_title": ("PV-Überschuss für die Wärmepumpe", "PV surplus for the heat pump"),
     "user_desc": (
-        "Wählt die Entitäten von EMS-ESP, Netzzähler, Akku und optional der PV-Prognose. Nach der Einrichtung startet die Integration im Beobachtungsmodus: Sie rechnet und protokolliert, schreibt aber nichts an die Wärmepumpe.",
-        "Pick the entities from EMS-ESP, grid meter, battery and optionally the PV forecast. After setup the integration starts in observe mode: it calculates and logs, but writes nothing to the heat pump.",
+        "Wählt die Entitäten von EMS-ESP, Netzzähler, Akku und optional der PV-Prognose. Nach der Einrichtung startet die Integration im Beobachtungsmodus: Sie rechnet und protokolliert, schreibt aber nichts an die Wärmepumpe. Peak-Modus: Als EVU-Eingang nur einen Eingang ohne angeschlossenen Sperrkontakt (Rundsteuerempfänger, Steuerbox, Shelly …) verwenden.",
+        "Pick the entities from EMS-ESP, grid meter, battery and optionally the PV forecast. After setup the integration starts in observe mode: it calculates and logs, but writes nothing to the heat pump. Peak mode: only use an EVU input with no blocking contact wired to it (ripple control receiver, control box, Shelly …).",
     ),
     "options_title": ("Quell-Entitäten ändern", "Change source entities"),
+    "options_desc": (
+        "Peak-Modus: Als EVU-Eingang nur einen Eingang ohne angeschlossenen Sperrkontakt (Rundsteuerempfänger, Steuerbox, Shelly …) verwenden. Die Integration setzt das Bit beim Neustart, Entladen und Entfernen auf 0.",
+        "Peak mode: only use an EVU input with no blocking contact wired to it (ripple control receiver, control box, Shelly …). The integration sets the bit to 0 on restart, unload and removal.",
+    ),
     "hp_power_required": (
         "Für die Leistungsnachführung wird auch die aktuelle Kompressorleistung benötigt.",
         "Compressor power control also needs the current compressor power.",
@@ -218,8 +222,8 @@ TEXT = {
         "The unit of the price sensor was not recognised. Please choose the unit below manually.",
     ),
     "peak_incomplete": (
-        "Für den Peak-Modus werden alle vier Felder benötigt: EVU-Eingang, Notstromreserve, Stundenpreis und Durchschnittspreis.",
-        "Peak mode needs all four fields: EVU input, backup reserve, hourly price and average price.",
+        "Für den Peak-Modus werden EVU-Eingang, Notstromreserve und Stundenpreis benötigt; der Durchschnittspreis ist optional.",
+        "Peak mode needs the EVU input, backup reserve and hourly price; the average price is optional.",
     ),
 }
 
@@ -257,6 +261,7 @@ def build(lang: int) -> dict:
             "step": {
                 "init": {
                     "title": TEXT["options_title"][lang],
+                    "description": TEXT["options_desc"][lang],
                     "data": opt_data,
                     "data_description": opt_desc,
                 }

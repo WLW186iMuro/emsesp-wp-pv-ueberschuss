@@ -122,8 +122,8 @@ def _validate(hass, user_input: dict[str, Any]) -> dict[str, str]:
     errors: dict[str, str] = {}
     if user_input.get(CONF_PVMAXCOMP_ENTITY) and not user_input.get(CONF_HP_POWER_ENTITY):
         errors[CONF_HP_POWER_ENTITY] = "hp_power_required"
-    # The EVU block (peak mode) needs all of its entities or none
-    if any(user_input.get(key) for key in PEAK_ENTITIES):
+    # The EVU block (peak mode) needs all of its entities or none; the average price is optional
+    if any(user_input.get(key) for key in (*PEAK_ENTITIES, CONF_AVG_PRICE_ENTITY)):
         for key in PEAK_ENTITIES:
             if not user_input.get(key):
                 errors[key] = "peak_incomplete"

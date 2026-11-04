@@ -813,7 +813,8 @@
           peakRun.hidden = false;
           const lines = [`<b>${esc(t.since)}</b> ${esc(this._time(a.peak_since))}`];
           lines.push(`<b>${esc(t.peakUntil)}</b> ${esc(this._time(a.peak_until))}`);
-          lines.push(`${esc(t.peakLiftBelow)} ${esc(ct(a.peak_limit_ct))}`);
+          // without an average price the expensive threshold lifts the block
+          lines.push(`${esc(t.peakLiftBelow)} ${esc(ct(a.peak_limit_ct ?? a.price_expensive_ct))}`);
           peakRun.innerHTML = lines.join("<br>");
         } else {
           root.getElementById("peak-title").textContent = t.peak;
