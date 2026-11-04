@@ -10,19 +10,23 @@ from .entity import PvSurplusEntity
 
 
 def keys(c) -> list[str]:
-    return ["requested", "signal_active", "battery_release", "surplus"]
+    out = ["requested", "signal_active", "battery_release", "surplus"]
+    if c.has_peak:
+        out += ["peak_active", "evu_signal_active"]
+    return out
 
 
 async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddConfigEntryEntitiesCallback) -> None:
     c = entry.runtime_data
-    async_add_entities(
-        [
-            RequestedSensor(c),
-            SignalSensor(c),
-            ReleaseSensor(c),
-            SurplusSensor(c),
-        ]
-    )
+    classes = {
+        "requested": RequestedSensor,
+        "signal_active": SignalSensor,
+        "battery_release": ReleaseSensor,
+        "surplus": SurplusSensor,
+        "peak_active": PeakSensor,
+        "evu_signal_active": EvuSignalSensor,
+    }
+    async_add_entities(classes[key](c) for key in keys(c))
 
 
 class RequestedSensor(PvSurplusEntity, BinarySensorEntity):
@@ -79,3 +83,31 @@ class SurplusSensor(PvSurplusEntity, BinarySensorEntity):
     def is_on(self) -> bool:
         res = self.controller.result
         return bool(res and res.surplus_now)
+
+
+class PeakSensor(PvSurplusEntity, BinarySensorEntity):
+    """EVU block (peak mode) requested by the controller (also in observe mode)."""
+
+    def __init__(self, controller) -> None:
+        super().__init__(controller, "peak_active")
+
+    @property
+    def is_on(self) -> bool:
+        return self.controller.state.peak_active
+
+
+class EvuSignalSensor(PvSurplusEntity, BinarySensorEntity):
+    """EVU bit actually set at the heat pump (read back from EMS-ESP)."""
+
+    def __init__(self, controller) -> None:
+        super().__init__(controller, "evu_signal_active")
+
+    @property
+    def is_on(self) -> bool | None:
+        res = self.controller.result
+        return res.evu_active if res else None
+
+    @property
+    def available(self) -> bool:
+        res = self.controller.result
+        return res is not None and res.evu_active is not None

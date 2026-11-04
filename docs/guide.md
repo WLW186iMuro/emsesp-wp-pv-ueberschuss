@@ -196,6 +196,52 @@ If the sensor has **no unit** (e.g. your own template sensor), pick it under *Co
 
 > ℹ️ The integration does not control the inverter. Whether the home battery discharges into the heat pump during cheap mode is up to your inverter or its integration.
 
+### 7.1 Peak mode: EVU block on high price and empty battery
+
+When electricity is expensive and the home battery is empty, the heat pump would run on expensive grid power. Peak mode then blocks it for a while through the **EVU block**, the same function a grid operator may use to switch the heat pump off.
+
+> ⚠️ **Only use an input with no blocking contact wired to it.** If a ripple control receiver, the grid operator's control box, a Shelly or any other relay is connected to the input, do not choose it for peak mode. The integration sets the bit to `0` on restart, unload and removal and would lift a real EVU block. Use a free input (e.g. input 1) and set it to EVU block on the controller (HMC300 / HPC410 / installer menu).
+
+**Setup:** *Integration → Configure*. The first four fields are needed, the average price is optional:
+
+| Field | Example |
+|---|---|
+| EMS-ESP input option for the EVU block | `text.boiler_hpin1opt` |
+| EVU block bit position | `0` (first character, default) |
+| Battery backup reserve in % | reserve entity of your inverter |
+| Current hourly price | Tibber “Hourly price current” (€/kWh or ct/kWh) |
+| Average price today (optional) | Tibber “Average price today” (€/kWh or ct/kWh). Without it the expensive threshold alone decides. With time-of-use tariffs (low/standard/peak rate) leave this field empty |
+
+You don't need a price sensor (section 7) for this, but the **Price control** switch must be on. Units are detected as for the price sensor; the *Unit of the price sensor* setting applies to all price sensors.
+
+**Setting the block:** the character at the **bit position** (default: first character, `1xxxxxxxxxxxxxx`) is set to `1`; all other characters stay as they are. This happens when all of these are true at the same time:
+
+| Condition | Default |
+|---|---|
+| **Readings available:** grid, battery and SoC plus a valid EVU input value (only `0`/`1`, bit position inside the pattern) | |
+| Price control on, mode *Automatic*, no PV mode | |
+| Hourly price ≥ **expensive threshold** | 35 ct/kWh |
+| Hourly price > **daily average × 108 %** (only with an average price; factor adjustable via “Peak: price above daily average”) | 108 % |
+| SoC ≤ **backup reserve + 2 %** | 2 % |
+| **Lock time:** 60 min since the last EVU block was lifted | 60 min |
+| at most **2 activations per day** | 2 |
+| available power **≤ 0 W for 10 min without a break** (grid import) | 10 min |
+
+**Lifting the block** (character back to `0`):
+
+- **with an average price:** as soon as the hourly price is **below daily average × 108 %** (the factor you set, see above; or no price for 15 min),
+- **without an average price:** as soon as the hourly price drops **below the expensive threshold** (or no price for 15 min),
+- at the latest after the **maximum block duration of 120 min**, whatever the price is then (safety limit). The lock time follows; if the conditions are still met afterwards, a second block can follow (daily limit),
+- at once if grid, battery or SoC readings are **missing for 10 min**,
+- at once when price control is switched off or the mode is changed,
+- at once when the **integration is unloaded** (Home Assistant restart, HACS update, disabling, changing the source entities) and when **Home Assistant stops**.
+
+**After a restart** the block only comes back once all conditions are met again, so after 10 min of grid import at the earliest. If the battery has charged or the price has dropped in the meantime, it stays off. If it comes back within the lock time (60 min) it counts as a continuation: it is not counted again for the daily limit, and the maximum block duration runs on from the original start. Later it is a new block; the lock time then starts at the restart. Even after a crash without a clean shutdown the integration lifts the block first when it starts.
+
+During the block the status shows **Peak mode – EVU block active**, and PV mode does not start. All values in the table can be changed in the settings group *Peak mode (EVU block)* (only while price control is on). In **observe mode** nothing is set; instead the logbook shows “[Observe] would set EVU block (…)” or “… lift …”. A block the integration set itself is always lifted again, also in observe mode. When the integration is removed it always sets the bit to `0`.
+
+> ⚠️ Check in EMS-ESP first which character of `hpin1opt` is the EVU block on your heat pump (usually the first on Buderus/Bosch/Junkers).
+
 ## 8. The dashboard card explained
 
 ![Dashboard card (German UI; shown in English when Home Assistant is set to English)](screenshots/karte.png)
@@ -217,7 +263,8 @@ If the sensor has **no unit** (e.g. your own template sensor), pick it under *Co
 | Compressor | current compressor power, limit (pvmaxcomp) below |
 | Forecast | Solcast remaining today, power in 30 min below |
 | Grid | power at the grid connection: import or export |
-| Today | starts today / daily limit, PV runtime today below |
+| PV surplus today | starts today / daily limit, PV runtime today below |
+| EVU locks today | only with peak mode and price control on: blocks today / daily limit, below it the runtime of the current block and until when it lasts at the latest, or until when the lock time applies |
 | Electricity price | only with price control: current price in ct/kWh, cheap / normal / expensive below |
 
 **Start conditions / PV mode running**
@@ -236,7 +283,7 @@ If the sensor has **no unit** (e.g. your own template sensor), pick it under *Co
 ![Settings 1](screenshots/einstellungen-1.png)
 ![Settings 2](screenshots/einstellungen-2.png)
 
-**Settings** (collapsible), in the groups *Surplus*, *Battery & forecast*, *Compressor protection & times* (including *End after compressor idle*, see section 5.3), *Power control* and – with price control on – *Electricity price*. Changes take effect immediately. Below are the **Lift lock time** and **Reset daily counter** buttons.
+**Settings** (collapsible), in the groups *Solar mode (PV surplus)*, *Battery & forecast*, *Compressor protection & times* (including *End after compressor idle*, see section 5.3), *Power control* and – with price control on – *Electricity price* and *Peak mode (EVU block)*. Changes take effect immediately. Below are the **Lift lock time** and **Reset daily counter** buttons. With peak mode they also reset the EVU lock time and the EVU daily counter; a running EVU block stays. The checklists are called **Start conditions solar mode (PV surplus)** and **Start conditions peak mode (EVU block)**; the second one only appears with peak mode and price control on.
 
 Card options (card editor or YAML):
 
@@ -326,6 +373,6 @@ After every DHW cycle the heat pump switches the compressor off and waits for it
 evcc is an energy manager for the whole house (wallbox, heat pump, priorities, tariffs) and now also has an EMS-ESP template. This integration is built specifically for the heat pump: compressor protection (minimum runtime, lock time, starts per day, start window, end after idle), battery release with forecast, power control with its own range and interval, and everything directly in Home Assistant with its own card. If you already use evcc for a wallbox, adding the heat pump there is often the simplest option. Just never let both write to the same input entity at the same time.
 
 **What happens when I remove the integration?**
-If it had set the bit, it resets it to normal operation.
+If it had set the PV bit, it resets it to normal operation. It always sets the EVU block bit (peak mode) to `0`, which is why no blocking contact may be wired to that input.
 
 **Report a bug:** [open an issue](https://github.com/WLW186iMuro/emsesp-wp-pv-ueberschuss/issues) and attach the diagnostics (*Integration → ⋮ → Download diagnostics*).
