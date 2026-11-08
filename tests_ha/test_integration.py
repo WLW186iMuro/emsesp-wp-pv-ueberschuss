@@ -25,7 +25,7 @@ BASE = {
     "price_unit": "auto",
 }
 
-PRICE_KEYS = ["price_control", "price_stop_expensive", "price_cheap_ct", "price_expensive_ct"]
+PRICE_KEYS = ["price_control", "price_block_start", "price_stop_expensive", "price_cheap_ct", "price_expensive_ct"]
 
 
 async def _setup(hass: HomeAssistant, **extra) -> MockConfigEntry:
@@ -130,7 +130,7 @@ async def test_cheap_price_starts_pv_mode(hass: HomeAssistant, sources) -> None:
     await hass.async_block_till_done()
     attrs = hass.states.get(status_id).attributes
     assert attrs["price_ct"] == 24.31
-    assert attrs["checks"]["price"] is True
+    assert "price" not in attrs["checks"]  # start block switch is off by default
     assert attrs["requested"] is False
 
     # Cheap: starts, but observe mode (default) writes nothing
@@ -156,15 +156,25 @@ async def test_cheap_price_starts_pv_mode(hass: HomeAssistant, sources) -> None:
 async def test_expensive_blocks_start(hass: HomeAssistant, sources) -> None:
     entry = await _setup(hass, price_entity=PRICE)
     controller = entry.runtime_data
+    status_id = _eid(hass, entry, "sensor", "status")
     await hass.services.async_call("switch", "turn_on", {"entity_id": _eid(hass, entry, "switch", "price_control")}, blocking=True)
     hass.states.async_set(PRICE, "0.45", {"unit_of_measurement": "EUR/kWh"})
     hass.states.async_set(GRID, "-3000", {"unit_of_measurement": "W"})
     await hass.async_block_till_done()
     await controller._async_tick()
     await hass.async_block_till_done()
-    state = hass.states.get(_eid(hass, entry, "sensor", "status"))
-    assert state.attributes["checks"]["price"] is False
+    state = hass.states.get(status_id)
+    assert "price" not in state.attributes["checks"]  # off by default (issue #6)
     assert state.attributes["price_expensive"] is True
+
+    block_id = _eid(hass, entry, "switch", "price_block_start")
+    assert hass.states.get(block_id).state == "off"
+    await hass.services.async_call("switch", "turn_on", {"entity_id": block_id}, blocking=True)
+    await hass.async_block_till_done()
+    await controller._async_tick()
+    await hass.async_block_till_done()
+    state = hass.states.get(status_id)
+    assert state.attributes["checks"]["price"] is False
     assert await hass.config_entries.async_unload(entry.entry_id)
 
 
@@ -172,6 +182,7 @@ async def test_unknown_unit_pauses_price(hass: HomeAssistant, sources) -> None:
     entry = await _setup(hass, price_entity=PRICE_NO_UNIT)  # auto mode, sensor without unit
     controller = entry.runtime_data
     await hass.services.async_call("switch", "turn_on", {"entity_id": _eid(hass, entry, "switch", "price_control")}, blocking=True)
+    await hass.services.async_call("switch", "turn_on", {"entity_id": _eid(hass, entry, "switch", "price_block_start")}, blocking=True)
     await hass.async_block_till_done()
     await controller._async_tick()
     await hass.async_block_till_done()
