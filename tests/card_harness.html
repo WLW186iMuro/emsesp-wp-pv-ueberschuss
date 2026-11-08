@@ -88,7 +88,7 @@
       surplus_since: "2026-10-18T11:39:40+02:00", lock_until: null } };
   }
 
-  const PRICE_KEYS = { price_control: "switch.pv_price", price_stop_expensive: "switch.pv_pstop",
+  const PRICE_KEYS = { price_control: "switch.pv_price", price_stop_expensive: "switch.pv_pstop", price_block_start: "switch.pv_pblock",
     price_cheap_ct: "number.pv_pcheap", price_expensive_ct: "number.pv_pexp", price_comp_kw: "number.pv_pcomp" };
   const PRICE_NUMS = { price_cheap_ct: [15, "ct/kWh", -50, 100, 0.5], price_expensive_ct: [35, "ct/kWh", -50, 200, 0.5], price_comp_kw: [2.5, "kW", 0.5, 10, 0.1] };
 
@@ -109,6 +109,7 @@
         states[PRICE_KEYS[k]] = { entity_id: PRICE_KEYS[k], state: on ? String(v) : "unavailable", attributes: on ? { unit_of_measurement: u, min, max, step } : {} };
       states[PRICE_KEYS.price_control].state = on ? "on" : "off";
       states[PRICE_KEYS.price_stop_expensive].state = on ? "off" : "unavailable";
+      states[PRICE_KEYS.price_block_start].state = on ? "off" : "unavailable";
       Object.assign(sc.attrs, { price: true, price_control: on, price_state: "ok", price_cheap_ct: 15, price_expensive_ct: 35 });
       if (on) {
         sc.attrs.checks = { ...sc.attrs.checks, price: true };

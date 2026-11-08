@@ -19,7 +19,7 @@ def keys(c) -> list[str]:
     if c.has_forecast:
         out.append("use_forecast")
     if c.has_price:
-        out += ["price_control", "price_stop_expensive"]
+        out += ["price_control", "price_block_start", "price_stop_expensive"]
     return out
 
 
@@ -33,8 +33,8 @@ class SettingSwitch(PvSurplusEntity, SwitchEntity):
 
     @property
     def available(self) -> bool:
-        # The stop option belongs to the price control and is locked while it is off.
-        if self.key == "price_stop_expensive":
+        # The price options belong to the price control and are locked while it is off.
+        if self.key in ("price_block_start", "price_stop_expensive"):
             return bool(self.controller.settings.price_control)
         return True
 

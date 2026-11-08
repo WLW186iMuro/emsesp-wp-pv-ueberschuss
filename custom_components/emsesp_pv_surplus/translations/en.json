@@ -233,6 +233,9 @@
       "price_control": {
         "name": "Price control"
       },
+      "price_block_start": {
+        "name": "Expensive electricity blocks PV start"
+      },
       "price_stop_expensive": {
         "name": "Stop PV mode on expensive electricity"
       }

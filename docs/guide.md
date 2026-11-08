@@ -186,7 +186,7 @@ If the sensor has **no unit** (e.g. your own template sensor), pick it under *Co
 |---|---|
 | **≤ cheap threshold** (default 15 ct/kWh) | PV mode **even without surplus**. Also at night, outside the start window and with an empty battery. Does **not** count towards the daily limit. Minimum runtime and lock time still apply. `pvmaxcomp` is set to *Compressor power on cheap electricity*. |
 | in between | normal PV surplus logic |
-| **≥ expensive threshold** (default 35 ct/kWh) | no PV start (new start condition "Electricity price not too high"). Optional *Stop when expensive*: a running PV mode ends after the minimum runtime. |
+| **≥ expensive threshold** (default 35 ct/kWh) | normal PV surplus logic – PV mode only uses surplus anyway. Optional *Expensive electricity blocks PV start*: no PV start then (extra start condition "Electricity price not too high"). Optional *Stop when expensive*: a running PV mode ends after the minimum runtime. |
 
 **Hand-overs without a stop:** if PV mode is running and electricity becomes cheap (e.g. at sunset), it carries on as cheap mode. If the cheap period ends and there is PV surplus, it carries on as PV mode. Otherwise cheap mode ends after the minimum runtime.
 
