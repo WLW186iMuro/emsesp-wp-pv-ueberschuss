@@ -1,6 +1,6 @@
 # Änderungsprotokoll
 
-## Unveröffentlicht
+## 0.4.1 – 2026-11-13
 
 - **Teurer Strom verhindert PV-Start** ist jetzt eine eigene Einstellung (Standard **aus**, Issue #6). Bisher blockierte ein Preis über der Teuer-Schwelle jeden PV-Start, auch bei stabilem Überschuss und vollem Akku. Da der PV-Betrieb nur bei Überschuss startet und bei Defizit von selbst endet, ist das jetzt optional. Wer das alte Verhalten möchte, schaltet den Schalter ein.
 
