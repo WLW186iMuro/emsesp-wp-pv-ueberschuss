@@ -142,6 +142,7 @@ ENTITIES = {
         "dynamic_power": ("Leistungsnachführung", "Compressor power control"),
         "use_forecast": ("PV-Prognose verwenden", "Use PV forecast"),
         "price_control": ("Preissteuerung", "Price control"),
+        "price_block_start": ("Teurer Strom verhindert PV-Start", "Expensive electricity blocks PV start"),
         "price_stop_expensive": ("Bei teurem Strom PV-Betrieb beenden", "Stop PV mode on expensive electricity"),
     },
     "select": {"mode": ("Betriebsart", "Mode")},

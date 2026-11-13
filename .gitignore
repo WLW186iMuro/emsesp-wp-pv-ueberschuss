@@ -5,3 +5,4 @@ node_modules/
 dist/
 *.zip
 .DS_Store
+tests/card_*.png

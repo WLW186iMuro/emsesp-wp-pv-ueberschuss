@@ -186,7 +186,7 @@ Hat der Sensor **keine Einheit** (z. B. ein eigener Template-Sensor), wählst du
 |---|---|
 | **≤ Günstig-Schwelle** (Standard 15 ct/kWh) | PV-Betrieb **auch ohne Überschuss**. Gilt auch nachts, außerhalb des Startfensters und bei leerem Akku. Zählt **nicht** ins Tageslimit. Mindestlaufzeit und Sperrzeit gelten weiter. `pvmaxcomp` steht auf *Kompressorleistung bei günstigem Strom*. |
 | dazwischen | normale PV-Überschuss-Logik |
-| **≥ Teuer-Schwelle** (Standard 35 ct/kWh) | kein PV-Start (neue Startbedingung „Strompreis nicht zu hoch“). Optional *Bei teurem Strom beenden*: ein laufender PV-Betrieb endet nach der Mindestlaufzeit. |
+| **≥ Teuer-Schwelle** (Standard 35 ct/kWh) | normale PV-Überschuss-Logik – PV-Betrieb nutzt ja nur Überschuss. Optional *Teurer Strom verhindert PV-Start*: dann kein PV-Start (zusätzliche Startbedingung „Strompreis nicht zu hoch“). Optional *Bei teurem Strom beenden*: ein laufender PV-Betrieb endet nach der Mindestlaufzeit. |
 
 **Übergänge ohne Stopp:** Läuft PV-Betrieb und der Strom wird günstig (z. B. bei Sonnenuntergang), geht es als Günstig-Betrieb weiter. Endet die Günstig-Phase und ist PV-Überschuss da, geht es als PV-Betrieb weiter. Sonst endet der Günstig-Betrieb nach der Mindestlaufzeit.
 

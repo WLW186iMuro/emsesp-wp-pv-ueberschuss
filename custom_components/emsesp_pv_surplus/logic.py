@@ -146,6 +146,7 @@ class Settings:
     price_cheap_ct: float = 15.0
     price_expensive_ct: float = 35.0
     price_stop_expensive: bool = False
+    price_block_start: bool = False
     price_comp_kw: float = 2.5
     idle_stop_min: float = 0.0  # 0 = off
 
@@ -542,7 +543,9 @@ def evaluate(settings: Settings, state: State, inp: Inputs, bit_index: int = 0) 
         "forecast": forecast_ok,
         "delay": delay_ok,
     }
-    if price_active:
+    # Optional: an expensive price blocks PV starts. Off by default, since PV
+    # mode only starts on a stable surplus and ends by itself on a deficit.
+    if price_active and settings.price_block_start:
         checks["price"] = not expensive_now
 
     result = Result(status=ST_WAIT, checks=checks)
@@ -651,7 +654,7 @@ def evaluate(settings: Settings, state: State, inp: Inputs, bit_index: int = 0) 
         status = ST_LOCKED
     elif not checks["battery"]:
         status = ST_BATTERY
-    elif expensive_now:
+    elif expensive_now and settings.price_block_start:
         status = ST_EXPENSIVE
     elif not window_ok:
         status = ST_WINDOW

@@ -7,7 +7,7 @@
   const DOMAIN = "emsesp_pv_surplus";
   const CARD = "emsesp-pv-surplus-card";
   const EDITOR = "emsesp-pv-surplus-card-editor";
-  const VERSION = "0.4.0";
+  const VERSION = "0.4.1";
 
   const T = {
     de: {
@@ -63,7 +63,7 @@
         observe: ["Beobachtungsmodus", "Nur rechnen, nichts schreiben"],
         dynamic_power: ["Leistungsnachführung", "PV max. Kompressorleistung an den Überschuss anpassen"],
         use_forecast: ["PV-Prognose verwenden", "Solcast für Akku-Freigabe und Einschalten nutzen"],
-        price_control: ["Preissteuerung", "Bei günstigem Strom einschalten, bei teurem nicht starten"],
+        price_control: ["Preissteuerung", "Bei günstigem Strom einschalten"],
       },
       settings: "Einstellungen",
       groups: {
@@ -95,7 +95,8 @@
         comp_interval_min: ["Anpassungsintervall", "Mittelwert und Takt"],
         idle_stop_min: ["Beenden nach Kompressor-Stillstand", "PV-Betrieb beenden, wenn der Kompressor so lange steht (0 = aus)"],
         price_cheap_ct: ["Günstig-Schwelle", "darunter PV-Betrieb auch ohne Überschuss"],
-        price_expensive_ct: ["Teuer-Schwelle", "darüber keine Starts"],
+        price_expensive_ct: ["Teuer-Schwelle", "ab hier gilt der Strom als teuer"],
+        price_block_start: ["Teurer Strom verhindert PV-Start", "kein PV-Start, solange der Preis über der Teuer-Schwelle liegt"],
         price_stop_expensive: ["Bei teurem Strom beenden", "laufenden PV-Betrieb nach der Mindestlaufzeit stoppen"],
         price_comp_kw: ["Kompressorleistung bei günstigem Strom", "PV max. Kompressorleistung im Günstig-Betrieb"],
       },
@@ -156,7 +157,7 @@
         observe: ["Observe mode", "Calculate only, write nothing"],
         dynamic_power: ["Compressor power control", "Adapt PV max. compressor power to the surplus"],
         use_forecast: ["Use PV forecast", "Use Solcast for battery release and switch-on"],
-        price_control: ["Price control", "Switch on with cheap electricity, do not start when expensive"],
+        price_control: ["Price control", "Switch on with cheap electricity"],
       },
       settings: "Settings",
       groups: {
@@ -188,7 +189,8 @@
         comp_interval_min: ["Adjustment interval", "averaging window and cadence"],
         idle_stop_min: ["End after compressor idle", "end PV mode once the compressor has stood still this long (0 = off)"],
         price_cheap_ct: ["Cheap threshold", "below this, PV mode even without surplus"],
-        price_expensive_ct: ["Expensive threshold", "above this, no starts"],
+        price_expensive_ct: ["Expensive threshold", "from here on electricity counts as expensive"],
+        price_block_start: ["Expensive electricity blocks PV start", "no PV start while the price is above the expensive threshold"],
         price_stop_expensive: ["Stop when expensive", "end running PV mode after the minimum runtime"],
         price_comp_kw: ["Compressor power on cheap electricity", "PV max. compressor power in cheap mode"],
       },
@@ -203,9 +205,9 @@
     ["battery", ["soc_release", "soc_stop", "soc_forecast", "battery_capacity_kwh", "forecast_reserve_kwh"]],
     ["protect", ["min_runtime_min", "lock_min", "max_activations", "idle_stop_min", "window_start", "window_end"]],
     ["compressor", ["comp_min_kw", "comp_max_kw", "comp_reserve_kw", "comp_step_kw", "comp_interval_min"]],
-    ["price", ["price_cheap_ct", "price_expensive_ct", "price_stop_expensive", "price_comp_kw"]],
+    ["price", ["price_cheap_ct", "price_expensive_ct", "price_block_start", "price_stop_expensive", "price_comp_kw"]],
   ];
-  const SWITCH_FIELDS = new Set(["price_stop_expensive"]);
+  const SWITCH_FIELDS = new Set(["price_block_start", "price_stop_expensive"]);
   const CHECKS = ["sensors", "sun", "window", "battery", "lock", "limit", "surplus", "forecast", "price", "delay"];
 
   const STATUS_TONE = {

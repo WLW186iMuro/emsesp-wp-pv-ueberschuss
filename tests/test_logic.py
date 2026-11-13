@@ -507,8 +507,26 @@ class TestPrice(unittest.TestCase):
         self.assertFalse(sim.state.requested)
         self.assertIn("stop:battery_low", sim.events)
 
-    def test_expensive_blocks_start(self):
+    def test_expensive_does_not_block_by_default(self):
+        # Issue #6: with stable surplus an expensive price does not prevent a PV start
         sim = price_sim()
+        sim.grid_w = -2500
+        sim.price = 45.0
+        res = sim.run(6)
+        self.assertTrue(sim.state.requested)
+        self.assertEqual(sim.state.run_kind, logic.RUN_PV)
+        self.assertNotIn("price", res.checks)
+        self.assertNotEqual(res.status, logic.ST_EXPENSIVE)
+
+    def test_expensive_waiting_status_only_with_block(self):
+        sim = price_sim()
+        sim.grid_w = 500  # no surplus
+        sim.price = 45.0
+        res = sim.run(3)
+        self.assertNotEqual(res.status, logic.ST_EXPENSIVE)
+
+    def test_expensive_blocks_start(self):
+        sim = price_sim(price_block_start=True)
         sim.grid_w = -2500
         sim.price = 45.0
         res = sim.run(10)
@@ -606,7 +624,7 @@ class TestPrice(unittest.TestCase):
         self.assertFalse(sim.state.requested)
 
     def test_unknown_price_does_not_block(self):
-        sim = price_sim()
+        sim = price_sim(price_block_start=True)
         sim.grid_w = -2500
         sim.price = None
         res = sim.run(6)
@@ -658,7 +676,7 @@ class TestPrice(unittest.TestCase):
         self.assertEqual(res.status, logic.ST_MANUAL)
 
     def test_settings_roundtrip_with_price(self):
-        s1 = logic.Settings(price_control=True, price_cheap_ct=12.5, price_expensive_ct=38.0, price_stop_expensive=True, price_comp_kw=3.2)
+        s1 = logic.Settings(price_control=True, price_cheap_ct=12.5, price_expensive_ct=38.0, price_stop_expensive=True, price_block_start=True, price_comp_kw=3.2)
         s2 = logic.Settings.from_dict(s1.to_dict())
         self.assertEqual(s1, s2)
         self.assertFalse(logic.Settings.from_dict({"mode": "auto"}).price_control)

@@ -233,6 +233,9 @@
       "price_control": {
         "name": "Preissteuerung"
       },
+      "price_block_start": {
+        "name": "Teurer Strom verhindert PV-Start"
+      },
       "price_stop_expensive": {
         "name": "Bei teurem Strom PV-Betrieb beenden"
       }

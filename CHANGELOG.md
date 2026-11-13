@@ -1,5 +1,9 @@
 # Änderungsprotokoll
 
+## 0.4.1 – 2026-11-13
+
+- **Teurer Strom verhindert PV-Start** ist jetzt eine eigene Einstellung (Standard **aus**, Issue #6). Bisher blockierte ein Preis über der Teuer-Schwelle jeden PV-Start, auch bei stabilem Überschuss und vollem Akku. Da der PV-Betrieb nur bei Überschuss startet und bei Defizit von selbst endet, ist das jetzt optional. Wer das alte Verhalten möchte, schaltet den Schalter ein.
+
 ## 0.4.0 – 2026-10-31
 
 - **Neu: Beenden nach Kompressor-Stillstand (optional).** Ist der Kompressor im PV- oder Günstig-Betrieb gelaufen und steht danach die eingestellte Zeit still, beendet die Integration den Betrieb, und die Sperrzeit beginnt. Das verhindert einen zweiten, unnötigen Kompressorstart, wenn die Wärmepumpe das erhöhte Warmwasser-Soll im PV-Betrieb nicht ganz erreicht und es nach ihrer eigenen Pause erneut versucht. Standard 0 = aus, empfohlen z. B. 20 min (länger als die Pause der Wärmepumpe zwischen Warmwasser und Heizen). Nur mit Leistungsnachführung, weil dafür die Kompressorleistung gebraucht wird.

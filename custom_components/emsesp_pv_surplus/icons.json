@@ -132,6 +132,9 @@
       "price_control": {
         "default": "mdi:cash-clock"
       },
+      "price_block_start": {
+        "default": "mdi:cash-lock"
+      },
       "price_stop_expensive": {
         "default": "mdi:cash-remove"
       }
