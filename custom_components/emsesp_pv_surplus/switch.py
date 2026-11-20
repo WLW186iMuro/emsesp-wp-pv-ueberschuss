@@ -18,8 +18,10 @@ def keys(c) -> list[str]:
         out.append("dynamic_power")
     if c.has_forecast:
         out.append("use_forecast")
+    if c.has_price_settings:
+        out.append("price_control")
     if c.has_price:
-        out += ["price_control", "price_block_start", "price_stop_expensive"]
+        out += ["price_block_start", "price_stop_expensive"]
     return out
 
 
