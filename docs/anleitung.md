@@ -202,6 +202,12 @@ Ist der Strom teuer und der Hausakku leer, müsste die Wärmepumpe teuer aus dem
 
 > ⚠️ **Nur einen Eingang ohne angeschlossenen Sperrkontakt verwenden.** Hängt an dem Eingang ein Rundsteuerempfänger, die Steuerbox des Netzbetreibers, ein Shelly oder ein anderes Relais, darf er nicht für den Peak-Modus gewählt werden. Die Integration setzt das Bit beim Neustart, Entladen und Entfernen auf `0` und würde damit eine echte EVU-Sperre aufheben. Nimm einen freien Eingang (z. B. Eingang 1) und stelle ihn im Regler (HMC300 / HPC410 / Fachmann-Menü) auf EVU-Sperre.
 
+> 🧪 **Experimentell.** Der Peak-Modus ist neu und bisher an wenigen Anlagen getestet (u. a. zwei Buderus-Anlagen mit Octopus Heat über mehrere Abende). Probiere ihn zuerst im Beobachtungsmodus aus und prüfe im Logbuch, ob Beginn und Ende der Sperre passen.
+
+> ℹ️ **Buderus WLW186i (und ähnliche Regler mit HMC300 / HPC410):**
+> - Die Funktion **EVU-Sperre gibt es nur an Eingang 1**. Eingang 2 kennt nur „Warmwasser sperren“ bzw. „Heizbetrieb sperren“, und EMS-ESP lehnt EVU-Werte dort ab. Als EMS-ESP Eingangs-Option für die EVU-Sperre also **`text.boiler_hpin1opt`** wählen.
+> - Das erste Zeichen von `hpin1opt` kehrt die Logik des Eingangs um. Ohne angeschlossenen Kontakt (offen) sperrt die Wärmepumpe, sobald die Integration dieses Zeichen auf `1` setzt. **Hängt an Eingang 1 ein echter Sperrkontakt des Netzbetreibers, würde ein geschlossener Kontakt genau dann aufgehoben, wenn die Integration sperrt.** Dann den Peak-Modus nicht verwenden.
+
 **Einrichten:** *Integration → Konfigurieren* – die ersten vier Felder sind nötig, der Durchschnittspreis ist optional:
 
 | Feld | Beispiel |

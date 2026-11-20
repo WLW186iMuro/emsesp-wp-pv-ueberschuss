@@ -75,7 +75,7 @@ evcc ist ein Energiemanager fürs ganze Haus (Wallbox, Wärmepumpe, Tarife) und 
 - Optional: PV-Prognose (z. B. [Solcast](https://github.com/BJReplay/ha-solcast-solar) „verbleibende Prognose heute“ in kWh und „Leistung in 30 Minuten“ in W)
 - Optional: ein Strompreis-Sensor für dynamische / zeitvariable Tarife (z. B. Tibber, Nord Pool, EPEX Spot, Octopus Germany)
 - An der Wärmepumpe muss der Eingang (z. B. Eingang 4) im Regler (HMC300 / HPC410 / Fachmann-Menü) für PV / SG Ready eingestellt sein.
-- Für den Peak-Modus muss der Eingang (z. B. Eingang 1) im Regler für die EVU-Sperre eingestellt sein.
+- Für den Peak-Modus muss der Eingang (z. B. Eingang 1) im Regler für die EVU-Sperre eingestellt sein. An der Buderus WLW186i gibt es die EVU-Sperre nur an **Eingang 1** (`text.boiler_hpin1opt`).
 
 > ⚠️ **Peak-Modus: nur einen Eingang ohne angeschlossenen Sperrkontakt verwenden.** Hängt an dem Eingang ein Rundsteuerempfänger, die Steuerbox des Netzbetreibers, ein Shelly oder ein anderes Relais, darf er nicht für den Peak-Modus gewählt werden. Die Integration setzt das Bit beim Neustart, Entladen und Entfernen auf `0` und würde damit eine echte EVU-Sperre aufheben.
 
@@ -270,7 +270,7 @@ evcc is an energy manager for the whole house (wallbox, heat pump, tariffs) and 
 - Optional: a PV forecast (e.g. [Solcast](https://github.com/BJReplay/ha-solcast-solar) "forecast remaining today" in kWh and "power in 30 minutes" in W)
 - Optional: an electricity price sensor for dynamic / time-of-use tariffs (e.g. Tibber, Nord Pool, EPEX Spot, Octopus Germany)
 - On the heat pump, the input (e.g. input 4) must be configured for PV / SG Ready on the controller (HMC300 / HPC410 / installer menu).
-- For peak mode the input (e.g. input 1) must be configured for the EVU block on the controller.
+- For peak mode the input (e.g. input 1) must be configured for the EVU block on the controller. On the Buderus WLW186i the EVU block exists only on **input 1** (`text.boiler_hpin1opt`).
 
 > ⚠️ **Peak mode: only use an input with no blocking contact wired to it.** If a ripple control receiver, the grid operator's control box, a Shelly or any other relay is connected to the input, do not choose it for peak mode. The integration sets the bit to `0` on restart, unload and removal and would lift a real EVU block.
 

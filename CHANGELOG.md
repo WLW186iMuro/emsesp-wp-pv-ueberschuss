@@ -1,8 +1,8 @@
 # Änderungsprotokoll
 
-## Unveröffentlicht
+## 0.5.0 – 2026-11-20
 
-- **Neu: Peak-Modus (optional)** – EVU-Sperre der Wärmepumpe bei hohem Strompreis und leerem Akku.
+- **Neu: Peak-Modus (optional, experimentell)** – EVU-Sperre der Wärmepumpe bei hohem Strompreis und leerem Akku. Beitrag von @mtbsteve (#4), getestet von @Sven242 an zwei Buderus-Anlagen mit Octopus Heat.
   - Neue Quell-Entitäten unter *Konfigurieren*: EMS-ESP Eingangs-Option für die EVU-Sperre (z. B. `text.boiler_hpin1opt`) mit Bit-Position (Standard 0), Akku-Notstromreserve, aktueller Stundenpreis; optional Durchschnittspreis heute.
   - **Nur einen Eingang ohne angeschlossenen Sperrkontakt verwenden** (Rundsteuerempfänger, Steuerbox, Shelly …) – Hinweis in README, Anleitung und Einrichtungsdialog.
   - Sperre (gewähltes Bit → `1`, die übrigen bleiben) bei: Preissteuerung an, Automatik ohne PV-Betrieb, Stundenpreis ≥ Teuer-Schwelle und – mit Durchschnittspreis – > 108 % des Tagesdurchschnitts, Ladestand ≤ Reserve + 2 %, 10 min Netzbezug am Stück, 60 min Pause, max. 2 pro Tag.
@@ -13,6 +13,7 @@
   - Neuer Status „Peak-Modus – EVU-Sperre aktiv“, eigener Abschnitt und Kachel „EVU-Sperren heute“ auf der Karte, alle Werte als Einstellungen.
   - *Sperrzeit aufheben* und *Tageszähler zurücksetzen* gelten auch für die EVU-Sperre.
   - Schalter *Preissteuerung* und *Teuer-Schwelle* gibt es auch ohne Strompreis-Sensor, wenn der Peak-Modus eingerichtet ist.
+  - Anleitung: Hinweis für die Buderus WLW186i – EVU-Sperre nur an Eingang 1 (`hpin1opt`), und warum dort kein echter Sperrkontakt angeschlossen sein darf.
 
 ## 0.4.1 – 2026-11-13
 

@@ -202,6 +202,12 @@ When electricity is expensive and the home battery is empty, the heat pump would
 
 > ⚠️ **Only use an input with no blocking contact wired to it.** If a ripple control receiver, the grid operator's control box, a Shelly or any other relay is connected to the input, do not choose it for peak mode. The integration sets the bit to `0` on restart, unload and removal and would lift a real EVU block. Use a free input (e.g. input 1) and set it to EVU block on the controller (HMC300 / HPC410 / installer menu).
 
+> 🧪 **Experimental.** Peak mode is new and has only been tested on a few systems so far (including two Buderus systems with Octopus Heat over several evenings). Try it in observe mode first and check in the logbook that the block starts and ends when you expect.
+
+> ℹ️ **Buderus WLW186i (and similar controllers with HMC300 / HPC410):**
+> - The **EVU block function exists only on input 1**. Input 2 only offers “block hot water” or “block heating”, and EMS-ESP rejects EVU values there. So choose **`text.boiler_hpin1opt`** as the EMS-ESP input option for the EVU block.
+> - The first character of `hpin1opt` inverts the input's logic. With nothing wired to the input (open), the heat pump is blocked as soon as the integration sets this character to `1`. **If a real blocking contact from the grid operator is wired to input 1, a closed contact would be lifted exactly while the integration is blocking.** In that case do not use peak mode.
+
 **Setup:** *Integration → Configure*. The first four fields are needed, the average price is optional:
 
 | Field | Example |
