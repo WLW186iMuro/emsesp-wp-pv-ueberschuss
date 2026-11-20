@@ -112,50 +112,48 @@
 <div class="grain"></div>
 <div class="wrap">
   <div class="left">
-    <div class="pill"><span class="dot"></span>Update v0.4.1 · kostenlos über HACS</div>
-    <h1><span class="g1">Sonne ist Sonne.</span><br><span class="g2">Egal, was Strom kostet.</span></h1>
-    <p class="sub"><b>EMS-ESP WP PV Überschuss</b> nutzt PV-Überschuss jetzt auch dann, wenn der Netzstrom gerade teuer ist. Der PV-Betrieb startet ohnehin nur bei stabilem Überschuss.</p>
+    <div class="pill"><span class="dot"></span>Update v0.5.0 · Peak-Modus (experimentell) · HACS</div>
+    <h1><span class="g1">Teurer Abend?</span><br><span class="g2">Wärmepumpe pausiert.</span></h1>
+    <p class="sub"><b>EMS-ESP WP PV Überschuss</b> kann die Wärmepumpe jetzt über die EVU-Sperre kurz anhalten, wenn der Strom teuer und der Akku leer ist, und gibt sie danach automatisch wieder frei.</p>
     <div class="feats">
-      <div class="feat"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#19d3b0"/><path d="M7 12.5l3 3 7-7" stroke="#07111f" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Teurer Strom</b> blockiert keinen PV-Start mehr</span></div>
-      <div class="feat"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#19d3b0"/><path d="M7 12.5l3 3 7-7" stroke="#07111f" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Altes Verhalten</b> per Schalter wählbar</span></div>
-      <div class="feat"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#19d3b0"/><path d="M7 12.5l3 3 7-7" stroke="#07111f" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Günstig-Betrieb</b> bleibt unverändert</span></div>
-      <div class="feat"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#19d3b0"/><path d="M7 12.5l3 3 7-7" stroke="#07111f" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Danke</b> an die Community für den Hinweis</span></div>
+      <div class="feat"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#19d3b0"/><path d="M7 12.5l3 3 7-7" stroke="#07111f" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Sperre</b> nur bei hohem Preis &amp; leerem Akku</span></div>
+      <div class="feat"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#19d3b0"/><path d="M7 12.5l3 3 7-7" stroke="#07111f" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Freigabe</b> bei Preisrückgang oder Höchstdauer</span></div>
+      <div class="feat"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#19d3b0"/><path d="M7 12.5l3 3 7-7" stroke="#07111f" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Neustart-sicher:</b> Sperre wird aufgehoben</span></div>
+      <div class="feat"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#19d3b0"/><path d="M7 12.5l3 3 7-7" stroke="#07111f" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Danke</b> an mtbsteve &amp; Sven fürs Bauen &amp; Testen</span></div>
     </div>
   </div>
   <div class="right">
     <div class="chartbox">
-      <div class="ch-h">Ein sonniger Tag mit teurem Strom <span class="lg"><i style="background:#ffd166"></i>Überschuss <i style="background:#ff7a5d"></i>Preis</span></div>
+      <div class="ch-h">Ein Winterabend mit HOCH-Tarif <span class="lg"><i style="background:#ff7a5d"></i>Preis <i style="background:#19d3b0"></i>Akku</span></div>
       <svg width="452" height="196" viewBox="0 0 452 196">
 <defs>
-<linearGradient id="gs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb300" stop-opacity=".6"/><stop offset="1" stop-color="#ffb300" stop-opacity=".05"/></linearGradient>
-<linearGradient id="gb" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffb300"/><stop offset="1" stop-color="#ffd166"/></linearGradient>
-<pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="rgba(255,106,77,.10)"/><line x1="0" y1="0" x2="0" y2="7" stroke="rgba(255,122,93,.55)" stroke-width="2.5"/></pattern>
+<pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="rgba(160,140,255,.16)"/><line x1="0" y1="0" x2="0" y2="7" stroke="rgba(180,160,255,.6)" stroke-width="2.5"/></pattern>
 </defs>
-<line x1="30" x2="448" y1="44.7" y2="44.7" stroke="#ff9a7a" stroke-width="1.5" stroke-dasharray="5 4" opacity=".8"/>
-<text x="448" y="58.7" text-anchor="end" class="ax e">Teuer-Schwelle 35 ct</text>
-<path d="M30.0 40.7 L82.2 38.8 L134.5 35.6 L186.8 34.3 L239.0 36.4 L291.2 37.7 L343.5 34.5 L395.8 32.4 L448.0 30.8" fill="none" stroke="#ff7a5d" stroke-width="2.5" stroke-linejoin="round"/>
-<text x="30" y="32.7" class="tl e">Strompreis 37–40 ct</text>
-<line x1="30" x2="448" y1="135" y2="135" stroke="rgba(159,176,200,.25)"/>
-<path d="M82.2 135 L82.2 135.0 L87.5 133.9 L92.7 132.1 L97.9 129.9 L103.2 127.4 L108.4 124.6 L113.6 121.7 L118.8 118.7 L124.1 115.5 L129.3 112.3 L134.5 109.0 L139.7 105.7 L144.9 102.4 L150.2 99.1 L155.4 95.9 L160.6 92.7 L165.8 89.7 L171.1 86.7 L176.3 84.0 L181.5 81.3 L186.8 78.9 L192.0 76.6 L197.2 74.5 L202.4 72.6 L207.7 71.0 L212.9 69.6 L218.1 68.4 L223.3 67.5 L228.6 66.9 L233.8 66.5 L239.0 66.3 L244.2 66.5 L249.4 66.9 L254.7 67.5 L259.9 68.4 L265.1 69.6 L270.4 71.0 L275.6 72.6 L280.8 74.5 L286.0 76.6 L291.2 78.9 L296.5 81.3 L301.7 84.0 L306.9 86.7 L312.2 89.7 L317.4 92.7 L322.6 95.9 L327.8 99.1 L333.1 102.4 L338.3 105.7 L343.5 109.0 L348.7 112.3 L353.9 115.5 L359.2 118.7 L364.4 121.7 L369.6 124.6 L374.8 127.4 L380.1 129.9 L385.3 132.1 L390.5 133.9 L395.8 135.0 L395.8 135 Z" fill="url(#gs)"/>
-<path d="M82.2 135.0 L87.5 133.9 L92.7 132.1 L97.9 129.9 L103.2 127.4 L108.4 124.6 L113.6 121.7 L118.8 118.7 L124.1 115.5 L129.3 112.3 L134.5 109.0 L139.7 105.7 L144.9 102.4 L150.2 99.1 L155.4 95.9 L160.6 92.7 L165.8 89.7 L171.1 86.7 L176.3 84.0 L181.5 81.3 L186.8 78.9 L192.0 76.6 L197.2 74.5 L202.4 72.6 L207.7 71.0 L212.9 69.6 L218.1 68.4 L223.3 67.5 L228.6 66.9 L233.8 66.5 L239.0 66.3 L244.2 66.5 L249.4 66.9 L254.7 67.5 L259.9 68.4 L265.1 69.6 L270.4 71.0 L275.6 72.6 L280.8 74.5 L286.0 76.6 L291.2 78.9 L296.5 81.3 L301.7 84.0 L306.9 86.7 L312.2 89.7 L317.4 92.7 L322.6 95.9 L327.8 99.1 L333.1 102.4 L338.3 105.7 L343.5 109.0 L348.7 112.3 L353.9 115.5 L359.2 118.7 L364.4 121.7 L369.6 124.6 L374.8 127.4 L380.1 129.9 L385.3 132.1 L390.5 133.9 L395.8 135.0" fill="none" stroke="#ffd166" stroke-width="2.5" stroke-linejoin="round"/>
-<text x="239.0" y="112" text-anchor="middle" class="nowl">PV-Überschuss</text>
-<text x="104" y="153" text-anchor="end" class="ax">bisher</text>
-<rect x="113.6" y="143" width="250.8" height="12" rx="6" fill="url(#hatch)" stroke="rgba(255,122,93,.6)"/>
-<text x="239.0" y="153" text-anchor="middle" class="ax e" style="font-weight:800">gesperrt</text>
-<text x="104" y="172" text-anchor="end" class="ax c">jetzt</text>
-<rect x="113.6" y="162" width="250.8" height="12" rx="6" fill="url(#gb)"/>
-<text x="239.0" y="172" text-anchor="middle" class="ax" style="fill:#07111f;font-weight:800">PV-Betrieb</text>
-<text x="82.2" y="191" text-anchor="middle" class="ax">10:00</text><text x="186.8" y="191" text-anchor="middle" class="ax">12:00</text><text x="291.2" y="191" text-anchor="middle" class="ax">14:00</text><text x="395.8" y="191" text-anchor="middle" class="ax">16:00</text>
+<rect x="152.3" y="8" width="177.4" height="128" fill="rgba(160,140,255,.08)" rx="6"/>
+<line x1="34" x2="448" y1="33.6" y2="33.6" stroke="#ff9a7a" stroke-width="1.5" stroke-dasharray="5 4" opacity=".8"/>
+<text x="448" y="46.6" text-anchor="end" class="ax e">Teuer-Schwelle</text>
+<path d="M34.0 50.4 L93.1 46.2 L151.1 44.8 L152.3 24.6 L211.4 23.0 L270.6 24.1 L328.5 25.5 L329.7 51.8 L388.9 54.6 L448.0 56.6" fill="none" stroke="#ff7a5d" stroke-width="2.6" stroke-linejoin="round"/>
+<text x="241.0" y="16.0" text-anchor="middle" class="tl e">HOCH-Preis</text>
+<line x1="34" x2="448" y1="117.0" y2="117.0" stroke="#6ef0d4" stroke-width="1.2" stroke-dasharray="3 4" opacity=".7"/>
+<text x="448" y="131.0" text-anchor="end" class="ax c">Notstromreserve</text>
+<path d="M34.0 93.0 L63.6 99.0 L93.1 105.0 L122.7 111.0 L146.4 115.5 L170.0 116.6 L211.4 116.8 L270.6 117.0 L329.7 117.0 L359.3 117.4 L388.9 118.1 L448.0 120.0" fill="none" stroke="#19d3b0" stroke-width="2.6" stroke-linejoin="round"/>
+<text x="39.9" y="87.0" class="tl c">Akku</text>
+<text x="30" y="157" text-anchor="end" class="ax">WP</text>
+<rect x="34.0" y="147" width="118.3" height="13" rx="6.5" fill="rgba(110,240,212,.35)"/>
+<rect x="152.3" y="147" width="177.4" height="13" rx="6.5" fill="url(#hatch)" stroke="rgba(180,160,255,.7)"/>
+<text x="241.0" y="157.5" text-anchor="middle" class="ax" style="fill:#e4dcff;font-weight:800">EVU-Sperre</text>
+<rect x="329.7" y="147" width="118.3" height="13" rx="6.5" fill="rgba(110,240,212,.35)"/>
+<text x="34.0" y="185" text-anchor="middle" class="ax">16:00</text><text x="152.3" y="185" text-anchor="middle" class="ax">18:00</text><text x="329.7" y="185" text-anchor="middle" class="ax">21:00</text><text x="448.0" y="185" text-anchor="end" class="ax">23:00</text>
 </svg>
     </div>
     <div class="card">
       <div class="row">
         <div class="ttl"><svg width="34" height="34" viewBox="0 0 24 24"><path fill="#ffd166" d="M12 7a5 5 0 100 10 5 5 0 000-10zm0-5l1.5 3h-3L12 2zm0 20l-1.5-3h3L12 22zM2 12l3-1.5v3L2 12zm20 0l-3 1.5v-3L22 12z"/></svg>PV-Überschuss Wärmepumpe</div>
-        <span class="chip pv"><span class="d"></span>PV-Betrieb</span>
+        <span class="chip pv" style="background:rgba(160,140,255,.18);color:#e4dcff;border-color:rgba(180,160,255,.55)"><span class="d" style="background:#b8a6ff"></span>EVU-Sperre aktiv</span>
       </div>
       <div class="tiles">
-        <div class="tile"><div class="k">Strompreis</div><div class="v neg">38 ct</div><div class="s">über Teuer-Schwelle</div></div>
-        <div class="tile"><div class="k">PV-Start</div><div class="v ok">frei</div><div class="s">Überschuss wird genutzt</div></div>
+        <div class="tile"><div class="k">Strompreis</div><div class="v neg">36 ct</div><div class="s">über Teuer-Schwelle</div></div>
+        <div class="tile"><div class="k">Akku</div><div class="v">20 %</div><div class="s">an der Notstromreserve</div></div>
       </div>
     </div>
   </div>
