@@ -113,7 +113,7 @@ PV-Betrieb startet, wenn **alle** Startbedingungen erfüllt sind. Die Karte zeig
 
 | Bedingung | Standard |
 |---|---|
-| Messwerte vorhanden | Netz, Akku, SoC lesbar |
+| Messwerte vorhanden (inkl. PV-Eingang) | Netz, Akku, SoC lesbar und ein gültiger Wert der EMS-ESP Eingangs-Option (nur Ziffern, an der gewählten Bit-Position `0` oder `1`) |
 | Sonne über dem Horizont | `sun.sun` |
 | Im Startfenster | 10:00–16:00 |
 | Akku über Abschaltgrenze | > 50 % |
@@ -132,7 +132,7 @@ Fällt der Überschuss während der Einschaltverzögerung kurz unter die Schwell
 | Kein Überschuss mehr | nach der **Mindestlaufzeit** (30 min), wenn die verfügbare Leistung **10 min** am Stück ≤ **−800 W** ist (also 800 W Bezug aus Netz/Akku) |
 | Akku zu leer | sofort, wenn der Ladestand 2 min unter der Abschaltgrenze (50 %) liegt |
 | Sonnenuntergang | sofort |
-| Messwerte fehlen | nach 10 min ohne Netz-, Akku- oder SoC-Wert |
+| Messwerte fehlen | nach 10 min ohne Netz-, Akku- oder SoC-Wert oder ohne gültigen Wert der EMS-ESP Eingangs-Option (z. B. Verbindung zu EMS-ESP gestört); gilt auch für den Betrieb mit günstigem Netzstrom |
 | Wärmepumpe fertig (optional) | wenn der Kompressor im PV-Betrieb gelaufen ist und danach so lange still steht wie unter *Beenden nach Kompressor-Stillstand* eingestellt (Standard 0 = aus) |
 
 Zwischen −800 W und +1500 W läuft die Wärmepumpe einfach weiter. Das ist die **Hysterese**. Sie verhindert, dass eine vorbeiziehende Wolke den Kompressor ausschaltet.
@@ -224,7 +224,7 @@ Ein Strompreis-Sensor (Abschnitt 7) ist dafür nicht nötig. Der Schalter **Prei
 
 | Bedingung | Standard |
 |---|---|
-| **Messwerte vorhanden:** Netz, Akku und Ladestand sowie ein gültiger Wert des EVU-Eingangs (nur `0`/`1`, Bit-Position im Muster) | |
+| **Messwerte vorhanden:** Netz, Akku und Ladestand sowie ein gültiger Wert des EVU-Eingangs (nur Ziffern, an der gewählten Bit-Position `0` oder `1`) | |
 | Preissteuerung an, Betriebsart *Automatik*, kein PV-Betrieb | |
 | Stundenpreis ≥ **Teuer-Schwelle** | 35 ct/kWh |
 | Stundenpreis > **Tagesdurchschnitt × 108 %** (nur mit Durchschnittspreis; Faktor einstellbar über „Peak: Preis über Tagesdurchschnitt“) | 108 % |
@@ -367,7 +367,7 @@ Die genauen IDs hängen vom Gerätenamen ab. Du findest sie unter *Einstellungen
 Prüfe im Regler der Wärmepumpe, ob der Eingang für PV / SG Ready eingestellt ist. Teste mit *Manuell an*.
 
 **Status „Messwerte fehlen“.**
-Ein Quell-Sensor ist länger als 2 Minuten `unavailable`. Kurze Aussetzer (z. B. MQTT-Reconnect) werden ignoriert. Nach 10 Minuten wird ein laufender PV-Betrieb sicherheitshalber beendet.
+Ein Quell-Sensor ist länger als 2 Minuten `unavailable`. Dazu zählt auch die EMS-ESP Eingangs-Option: Ist die Verbindung zu EMS-ESP gestört, kann die Integration das PV-Bit nicht schreiben und startet deshalb nicht. Kurze Aussetzer (z. B. MQTT-Reconnect) werden ignoriert. Nach 10 Minuten wird ein laufender PV-Betrieb sicherheitshalber beendet.
 
 **Karte zeigt „Custom element doesn't exist“.**
 Seite einmal mit Strg+F5 neu laden. Bei Dashboards im YAML-Modus die Ressource `/emsesp_pv_surplus/emsesp-pv-surplus-card.js` (Typ *module*) selbst eintragen.

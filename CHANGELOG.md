@@ -1,5 +1,13 @@
 # Änderungsprotokoll
 
+## Unveröffentlicht
+
+- **Korrektur: PV-Eingang gehört zu „Messwerte vorhanden“.** Bisher prüfte der Check im Solarbetrieb nur Netz, Akku und Ladestand (vom Wechselrichter). War die Verbindung zu EMS-ESP gestört, war er trotzdem grün: Der PV-Betrieb „startete“, zählte als Aktivierung, schrieb aber kein Bit. Jetzt gilt wie im Peak-Modus:
+  - Der Check verlangt zusätzlich einen gültigen Wert der EMS-ESP Eingangs-Option (nur Ziffern, an der gewählten Bit-Position `0` oder `1`); auf der Karte heißt er „Messwerte vorhanden (inkl. PV-Eingang)“.
+  - Ohne gültigen Wert startet weder der PV-Betrieb noch der Betrieb mit günstigem Netzstrom; der Status wechselt nach 2 Minuten auf „Messwerte fehlen“.
+  - Ein laufender Betrieb endet nach 10 Minuten ohne gültigen Wert („Messwerte fehlen“). Kurze Aussetzer werden ignoriert. *Manuell an* ist nicht betroffen.
+- **Korrektur: Eingangs-Optionen mit Modulationswert.** EMS-ESP hängt an die Flags der Eingangs-Option eine Zahl für die Modulation an, z. B. `000000100003` bei Eingang 4. Bisher galt ein solcher Wert als ungültig, sobald die Zahl nicht 0 oder 1 war: Das PV-Bit (und das Bit der EVU-Sperre) wurde dann nicht geschrieben. Jetzt sind Ziffern erlaubt; nur das gewählte Zeichen muss `0` oder `1` sein, die Modulation bleibt unverändert.
+
 ## 0.5.0 – 2026-11-20
 
 - **Neu: Peak-Modus (optional, experimentell)** – EVU-Sperre der Wärmepumpe bei hohem Strompreis und leerem Akku. Beitrag von @mtbsteve (#4), getestet von @Sven242 an zwei Buderus-Anlagen mit Octopus Heat.

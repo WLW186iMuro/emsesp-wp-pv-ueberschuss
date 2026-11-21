@@ -147,6 +147,12 @@ class TestHelpers(unittest.TestCase):
         self.assertFalse(logic.valid_bits("unavailable", 0))
         self.assertFalse(logic.valid_bits("0101", 4))
         self.assertFalse(logic.valid_bits(None, 0))
+        # EMS-ESP appends the modulation as a number: only the selected flag must be 0/1
+        self.assertTrue(logic.valid_bits("000000100003", 6))
+        self.assertTrue(logic.valid_bits("0000001000012", 0))
+        self.assertFalse(logic.valid_bits("000000100003", 11))
+        self.assertFalse(logic.valid_bits("00000010000x", 0))
+        self.assertEqual(logic.set_bit("000000100003", 6, False), "000000000003")
 
     def test_window(self):
         self.assertTrue(logic.in_window(time(10), time(10), time(16)))
@@ -397,6 +403,105 @@ class TestControl(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSignalInput(unittest.TestCase):
+    """The SG-Ready input comes from EMS-ESP: without it nothing can be written."""
+
+    def test_missing_signal_blocks_start(self):
+        sim = Sim()
+        sim.grid_w = -2500
+        sim.bits = None  # EMS-ESP connection lost, inverter readings fine
+        res = sim.run(10)
+        self.assertFalse(res.checks["sensors"])
+        self.assertFalse(sim.state.requested)
+        self.assertEqual(res.status, logic.ST_SENSOR)
+        self.assertEqual(sim.state.activations, 0)
+
+    def test_invalid_signal_blocks_start(self):
+        for bits in ("unavailable", "", "01x0"):
+            sim = Sim()
+            sim.grid_w = -2500
+            sim.bits = bits
+            res = sim.run(10)
+            self.assertFalse(res.checks["sensors"], bits)
+            self.assertFalse(sim.state.requested, bits)
+
+    def test_signal_back_allows_start(self):
+        sim = Sim()
+        sim.grid_w = -2500
+        sim.bits = None
+        sim.run(10)
+        sim.bits = BITS_OFF
+        sim.run(6)
+        self.assertTrue(sim.state.requested)
+        self.assertIn("start:surplus", sim.events)
+
+    def test_short_signal_dropout_keeps_status_and_run(self):
+        sim = Sim()
+        sim.grid_w = -2500
+        sim.run(6)
+        self.assertTrue(sim.state.requested)
+        bits = sim.bits
+        sim.bits = None
+        res = sim.run(1)
+        self.assertEqual(res.status, logic.ST_PV)
+        sim.bits = bits
+        sim.run(1)
+        self.assertTrue(sim.state.requested)
+        self.assertIsNone(sim.state.signal_fail_since)
+
+    def test_signal_failure_stops_pv_run_after_10_min(self):
+        sim = Sim()
+        sim.grid_w = -2500
+        sim.run(6)
+        self.assertTrue(sim.state.requested)
+        sim.bits = None
+        sim.run(9)
+        self.assertTrue(sim.state.requested)
+        sim.run(1.5)
+        self.assertFalse(sim.state.requested)
+        self.assertIn("stop:sensor_error", sim.events)
+
+    def test_signal_failure_stops_cheap_run(self):
+        sim = price_sim()
+        sim.now = at(2)
+        sim.sun_up = False
+        sim.soc = 10
+        sim.grid_w = 1500
+        sim.price = 12.0
+        sim.step()
+        self.assertTrue(sim.state.requested)
+        sim.bits = None
+        sim.run(10.5)
+        self.assertFalse(sim.state.requested)
+        self.assertIn("stop:sensor_error", sim.events)
+
+    def test_missing_signal_blocks_cheap_start(self):
+        sim = price_sim()
+        sim.now = at(2)
+        sim.sun_up = False
+        sim.soc = 10
+        sim.grid_w = 1500
+        sim.price = 12.0
+        sim.bits = None
+        sim.run(5)
+        self.assertFalse(sim.state.requested)
+
+    def test_modulation_digit_counts_as_valid(self):
+        sim = Sim()
+        sim.grid_w = -2500
+        sim.bits = BITS_OFF[:-1] + "3"  # e.g. "000000100003" from EMS-ESP
+        res = sim.run(6)
+        self.assertTrue(res.checks["sensors"])
+        self.assertTrue(sim.state.requested)
+        self.assertTrue(sim.bits.endswith("3"))  # modulation left as it is
+
+    def test_manual_mode_unaffected(self):
+        sim = Sim(mode=logic.MODE_MANUAL)
+        sim.bits = None
+        sim.run(15)
+        self.assertTrue(sim.state.requested)
 
 
 class TestPriceUnits(unittest.TestCase):
