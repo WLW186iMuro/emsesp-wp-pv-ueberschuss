@@ -1,8 +1,8 @@
 # Änderungsprotokoll
 
-## Unveröffentlicht
+## 0.5.1 – 2026-11-23
 
-- **Korrektur: PV-Eingang gehört zu „Messwerte vorhanden“.** Bisher prüfte der Check im Solarbetrieb nur Netz, Akku und Ladestand (vom Wechselrichter). War die Verbindung zu EMS-ESP gestört, war er trotzdem grün: Der PV-Betrieb „startete“, zählte als Aktivierung, schrieb aber kein Bit. Jetzt gilt wie im Peak-Modus:
+- **Korrektur: PV-Eingang gehört zu „Messwerte vorhanden“** (#9, Beitrag von @mtbsteve in #8). Bisher prüfte der Check im Solarbetrieb nur Netz, Akku und Ladestand (vom Wechselrichter). War die Verbindung zu EMS-ESP gestört, war er trotzdem grün: Der PV-Betrieb „startete“, zählte als Aktivierung, schrieb aber kein Bit. Jetzt gilt wie im Peak-Modus:
   - Der Check verlangt zusätzlich einen gültigen Wert der EMS-ESP Eingangs-Option (nur Ziffern, an der gewählten Bit-Position `0` oder `1`); auf der Karte heißt er „Messwerte vorhanden (inkl. PV-Eingang)“.
   - Ohne gültigen Wert startet weder der PV-Betrieb noch der Betrieb mit günstigem Netzstrom; der Status wechselt nach 2 Minuten auf „Messwerte fehlen“.
   - Ein laufender Betrieb endet nach 10 Minuten ohne gültigen Wert („Messwerte fehlen“). Kurze Aussetzer werden ignoriert. *Manuell an* ist nicht betroffen.

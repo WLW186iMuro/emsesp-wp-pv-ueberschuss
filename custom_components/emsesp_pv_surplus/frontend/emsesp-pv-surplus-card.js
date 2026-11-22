@@ -7,7 +7,7 @@
   const DOMAIN = "emsesp_pv_surplus";
   const CARD = "emsesp-pv-surplus-card";
   const EDITOR = "emsesp-pv-surplus-card-editor";
-  const VERSION = "0.5.0";
+  const VERSION = "0.5.1";
 
   const T = {
     de: {
