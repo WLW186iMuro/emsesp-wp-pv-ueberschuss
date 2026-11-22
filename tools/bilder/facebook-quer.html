@@ -107,53 +107,57 @@
   .ax.c { fill:#6ef0d4; } .ax.e { fill:#ff9a7a; }
   .nowl { font-size:12px; }
   .row { flex-wrap: wrap; gap: 10px; }
-  h1 { font-size: 54px; letter-spacing: -1.6px; }
+  h1 { font-size: 50px; letter-spacing: -1.5px; }
 </style></head><body>
 <div class="grain"></div>
 <div class="wrap">
   <div class="left">
-    <div class="pill"><span class="dot"></span>Update v0.5.0 · Peak-Modus (experimentell) · HACS</div>
-    <h1><span class="g1">Teurer Abend?</span><br><span class="g2">Wärmepumpe pausiert.</span></h1>
-    <p class="sub"><b>EMS-ESP WP PV Überschuss</b> kann die Wärmepumpe jetzt über die EVU-Sperre kurz anhalten, wenn der Strom teuer und der Akku leer ist, und gibt sie danach automatisch wieder frei.</p>
+    <div class="pill"><span class="dot"></span>Update v0.5.1 · Fehlerkorrektur · kostenlos über HACS</div>
+    <h1><span class="g1">Ehrlicher Status.</span><br><span class="g2">Auch ohne EMS-ESP.</span></h1>
+    <p class="sub"><b>EMS-ESP WP PV Überschuss</b> prüft jetzt auch, ob EMS-ESP erreichbar ist. Ohne Verbindung startet kein Betrieb, und die Karte zeigt „Messwerte fehlen“.</p>
     <div class="feats">
-      <div class="feat"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#19d3b0"/><path d="M7 12.5l3 3 7-7" stroke="#07111f" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Sperre</b> nur bei hohem Preis &amp; leerem Akku</span></div>
-      <div class="feat"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#19d3b0"/><path d="M7 12.5l3 3 7-7" stroke="#07111f" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Freigabe</b> bei Preisrückgang oder Höchstdauer</span></div>
-      <div class="feat"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#19d3b0"/><path d="M7 12.5l3 3 7-7" stroke="#07111f" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Neustart-sicher:</b> Sperre wird aufgehoben</span></div>
-      <div class="feat"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#19d3b0"/><path d="M7 12.5l3 3 7-7" stroke="#07111f" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Danke</b> an mtbsteve &amp; Sven fürs Bauen &amp; Testen</span></div>
+      <div class="feat"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#19d3b0"/><path d="M7 12.5l3 3 7-7" stroke="#07111f" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Messwerte vorhanden</b> prüft auch den PV-Eingang</span></div>
+      <div class="feat"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#19d3b0"/><path d="M7 12.5l3 3 7-7" stroke="#07111f" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Kein Schein-Betrieb</b> bei EMS-ESP-Ausfall</span></div>
+      <div class="feat"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#19d3b0"/><path d="M7 12.5l3 3 7-7" stroke="#07111f" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Eingänge mit Modulationswert</b> funktionieren</span></div>
+      <div class="feat"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#19d3b0"/><path d="M7 12.5l3 3 7-7" stroke="#07111f" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Danke</b> an mtbsteve fürs Finden &amp; Beheben</span></div>
     </div>
   </div>
   <div class="right">
     <div class="chartbox">
-      <div class="ch-h">Ein Winterabend mit HOCH-Tarif <span class="lg"><i style="background:#ff7a5d"></i>Preis <i style="background:#19d3b0"></i>Akku</span></div>
+      <div class="ch-h">Kurzer EMS-ESP-Aussetzer am Mittag <span class="lg"><i style="background:#ffd166"></i>Überschuss</span></div>
       <svg width="452" height="196" viewBox="0 0 452 196">
 <defs>
-<pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="rgba(160,140,255,.16)"/><line x1="0" y1="0" x2="0" y2="7" stroke="rgba(180,160,255,.6)" stroke-width="2.5"/></pattern>
+<linearGradient id="gs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb300" stop-opacity=".55"/><stop offset="1" stop-color="#ffb300" stop-opacity=".05"/></linearGradient>
+<linearGradient id="gb" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffb300"/><stop offset="1" stop-color="#ffd166"/></linearGradient>
+<pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="rgba(255,106,77,.10)"/><line x1="0" y1="0" x2="0" y2="7" stroke="rgba(255,122,93,.55)" stroke-width="2.5"/></pattern>
 </defs>
-<rect x="152.3" y="8" width="177.4" height="128" fill="rgba(160,140,255,.08)" rx="6"/>
-<line x1="34" x2="448" y1="33.6" y2="33.6" stroke="#ff9a7a" stroke-width="1.5" stroke-dasharray="5 4" opacity=".8"/>
-<text x="448" y="46.6" text-anchor="end" class="ax e">Teuer-Schwelle</text>
-<path d="M34.0 50.4 L93.1 46.2 L151.1 44.8 L152.3 24.6 L211.4 23.0 L270.6 24.1 L328.5 25.5 L329.7 51.8 L388.9 54.6 L448.0 56.6" fill="none" stroke="#ff7a5d" stroke-width="2.6" stroke-linejoin="round"/>
-<text x="241.0" y="16.0" text-anchor="middle" class="tl e">HOCH-Preis</text>
-<line x1="34" x2="448" y1="117.0" y2="117.0" stroke="#6ef0d4" stroke-width="1.2" stroke-dasharray="3 4" opacity=".7"/>
-<text x="448" y="131.0" text-anchor="end" class="ax c">Notstromreserve</text>
-<path d="M34.0 93.0 L63.6 99.0 L93.1 105.0 L122.7 111.0 L146.4 115.5 L170.0 116.6 L211.4 116.8 L270.6 117.0 L329.7 117.0 L359.3 117.4 L388.9 118.1 L448.0 120.0" fill="none" stroke="#19d3b0" stroke-width="2.6" stroke-linejoin="round"/>
-<text x="39.9" y="87.0" class="tl c">Akku</text>
-<text x="30" y="157" text-anchor="end" class="ax">WP</text>
-<rect x="34.0" y="147" width="118.3" height="13" rx="6.5" fill="rgba(110,240,212,.35)"/>
-<rect x="152.3" y="147" width="177.4" height="13" rx="6.5" fill="url(#hatch)" stroke="rgba(180,160,255,.7)"/>
-<text x="241.0" y="157.5" text-anchor="middle" class="ax" style="fill:#e4dcff;font-weight:800">EVU-Sperre</text>
-<rect x="329.7" y="147" width="118.3" height="13" rx="6.5" fill="rgba(110,240,212,.35)"/>
-<text x="34.0" y="185" text-anchor="middle" class="ax">16:00</text><text x="152.3" y="185" text-anchor="middle" class="ax">18:00</text><text x="329.7" y="185" text-anchor="middle" class="ax">21:00</text><text x="448.0" y="185" text-anchor="end" class="ax">23:00</text>
+<rect x="189.2" y="10" width="77.6" height="168" fill="rgba(255,122,93,.08)" rx="6"/>
+<text x="228.1" y="24" text-anchor="middle" class="tl e">EMS-ESP weg</text>
+<line x1="34" x2="448" y1="120" y2="120" stroke="rgba(159,176,200,.25)"/>
+<path d="M34.0 120 L34.0 94.9 L44.3 91.6 L54.7 88.4 L65.1 85.3 L75.4 82.3 L85.8 79.3 L96.1 76.4 L106.4 73.7 L116.8 71.2 L127.2 68.7 L137.5 66.5 L147.8 64.4 L158.2 62.5 L168.6 60.8 L178.9 59.4 L189.2 58.1 L199.6 57.1 L209.9 56.3 L220.3 55.7 L230.7 55.3 L241.0 55.2 L251.3 55.3 L261.7 55.7 L272.1 56.3 L282.4 57.1 L292.8 58.1 L303.1 59.4 L313.4 60.8 L323.8 62.5 L334.2 64.4 L344.5 66.5 L354.8 68.7 L365.2 71.2 L375.6 73.7 L385.9 76.4 L396.2 79.3 L406.6 82.3 L416.9 85.3 L427.3 88.4 L437.7 91.6 L448.0 94.9 L448.0 120 Z" fill="url(#gs)"/>
+<path d="M34.0 94.9 L44.3 91.6 L54.7 88.4 L65.1 85.3 L75.4 82.3 L85.8 79.3 L96.1 76.4 L106.4 73.7 L116.8 71.2 L127.2 68.7 L137.5 66.5 L147.8 64.4 L158.2 62.5 L168.6 60.8 L178.9 59.4 L189.2 58.1 L199.6 57.1 L209.9 56.3 L220.3 55.7 L230.7 55.3 L241.0 55.2 L251.3 55.3 L261.7 55.7 L272.1 56.3 L282.4 57.1 L292.8 58.1 L303.1 59.4 L313.4 60.8 L323.8 62.5 L334.2 64.4 L344.5 66.5 L354.8 68.7 L365.2 71.2 L375.6 73.7 L385.9 76.4 L396.2 79.3 L406.6 82.3 L416.9 85.3 L427.3 88.4 L437.7 91.6 L448.0 94.9" fill="none" stroke="#ffd166" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="44.3" y="62" class="nowl">PV-Überschuss</text>
+<text x="104" y="141" text-anchor="end" class="ax">bisher</text>
+<rect x="122.0" y="131" width="284.6" height="13" rx="6.5" fill="rgba(255,209,102,.35)"/>
+<rect x="189.2" y="131" width="77.6" height="13" fill="url(#hatch)"/>
+<text x="228.1" y="141.5" text-anchor="middle" class="ax e" style="font-weight:800">„läuft“?</text>
+<text x="104" y="163" text-anchor="end" class="ax c">jetzt</text>
+<rect x="122.0" y="153" width="64.3" height="13" rx="6.5" fill="url(#gb)"/>
+<rect x="192.2" y="153" width="71.6" height="13" rx="6.5" fill="rgba(255,255,255,.08)" stroke="rgba(255,154,122,.7)"/>
+<text x="228.1" y="163.5" text-anchor="middle" class="ax e" style="font-weight:800">pausiert</text>
+<rect x="269.9" y="153" width="136.7" height="13" rx="6.5" fill="url(#gb)"/>
+<text x="336.7" y="163.5" text-anchor="middle" class="ax" style="fill:#07111f;font-weight:800">PV-Betrieb</text>
+<text x="34.0" y="190" text-anchor="middle" class="ax">11:00</text><text x="137.5" y="190" text-anchor="middle" class="ax">12:00</text><text x="241.0" y="190" text-anchor="middle" class="ax">13:00</text><text x="344.5" y="190" text-anchor="middle" class="ax">14:00</text><text x="448.0" y="190" text-anchor="end" class="ax">15:00</text>
 </svg>
     </div>
     <div class="card">
       <div class="row">
         <div class="ttl"><svg width="34" height="34" viewBox="0 0 24 24"><path fill="#ffd166" d="M12 7a5 5 0 100 10 5 5 0 000-10zm0-5l1.5 3h-3L12 2zm0 20l-1.5-3h3L12 22zM2 12l3-1.5v3L2 12zm20 0l-3 1.5v-3L22 12z"/></svg>PV-Überschuss Wärmepumpe</div>
-        <span class="chip pv" style="background:rgba(160,140,255,.18);color:#e4dcff;border-color:rgba(180,160,255,.55)"><span class="d" style="background:#b8a6ff"></span>EVU-Sperre aktiv</span>
+        <span class="chip pv" style="background:rgba(255,122,93,.15);color:#ffb39f;border-color:rgba(255,154,122,.55)"><span class="d" style="background:#ff7a5d"></span>Messwerte fehlen</span>
       </div>
       <div class="tiles">
-        <div class="tile"><div class="k">Strompreis</div><div class="v neg">36 ct</div><div class="s">über Teuer-Schwelle</div></div>
-        <div class="tile"><div class="k">Akku</div><div class="v">20 %</div><div class="s">an der Notstromreserve</div></div>
+        <div class="tile"><div class="k">PV-Eingang</div><div class="v neg">nicht lesbar</div><div class="s">EMS-ESP nicht erreichbar</div></div>
+        <div class="tile"><div class="k">PV-Betrieb</div><div class="v">wartet</div><div class="s">startet, sobald EMS-ESP zurück ist</div></div>
       </div>
     </div>
   </div>
