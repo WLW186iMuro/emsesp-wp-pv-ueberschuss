@@ -48,7 +48,7 @@
       deficitSince: "Überschuss fehlt seit",
       minRuntimeDone: "Mindestlaufzeit erfüllt",
       checks: {
-        sensors: "Messwerte vorhanden",
+        sensors: "Messwerte vorhanden (inkl. PV-Eingang)",
         sun: "Sonne über dem Horizont",
         window: "Im Startfenster",
         battery: "Akku über Abschaltgrenze",
@@ -166,7 +166,7 @@
       deficitSince: "Surplus missing since",
       minRuntimeDone: "Minimum runtime done",
       checks: {
-        sensors: "Readings available",
+        sensors: "Readings available (incl. PV input)",
         sun: "Sun above horizon",
         window: "Inside start window",
         battery: "Battery above stop level",

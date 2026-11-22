@@ -113,7 +113,7 @@ PV mode starts when **all** start conditions are met. The card shows them as a c
 
 | Condition | Default |
 |---|---|
-| Readings available | grid, battery, SoC readable |
+| Readings available (incl. PV input) | grid, battery, SoC readable plus a valid value of the EMS-ESP input option (digits only, `0` or `1` at the selected bit position) |
 | Sun above horizon | `sun.sun` |
 | Inside start window | 10:00–16:00 |
 | Battery above stop level | > 50 % |
@@ -132,7 +132,7 @@ If the surplus drops below the threshold during the switch-on delay, the delay s
 | No surplus | after the **minimum runtime** (30 min), when the available power is ≤ **−800 W** (i.e. 800 W drawn from grid/battery) for **10 min** in a row |
 | Battery too low | immediately, when the SoC is below the stop level (50 %) for 2 min |
 | Sunset | immediately |
-| Readings missing | after 10 min without grid, battery or SoC value |
+| Readings missing | after 10 min without grid, battery or SoC value, or without a valid value of the EMS-ESP input option (e.g. connection to EMS-ESP lost); also applies to running on cheap grid power |
 | Heat pump done (optional) | when the compressor has run during PV mode and then stood still for the time set in *End after compressor idle* (default 0 = off) |
 
 Between −800 W and +1500 W the heat pump simply keeps running. That's the **hysteresis**. It keeps a passing cloud from turning the compressor off.
@@ -224,7 +224,7 @@ You don't need a price sensor (section 7) for this, but the **Price control** sw
 
 | Condition | Default |
 |---|---|
-| **Readings available:** grid, battery and SoC plus a valid EVU input value (only `0`/`1`, bit position inside the pattern) | |
+| **Readings available:** grid, battery and SoC plus a valid EVU input value (digits only, `0` or `1` at the selected bit position) | |
 | Price control on, mode *Automatic*, no PV mode | |
 | Hourly price ≥ **expensive threshold** | 35 ct/kWh |
 | Hourly price > **daily average × 108 %** (only with an average price; factor adjustable via “Peak: price above daily average”) | 108 % |
@@ -364,7 +364,7 @@ The exact IDs depend on the device name and the Home Assistant language. You fin
 Check in the heat pump controller that the input is set to PV / SG Ready. Test with *Manual on*.
 
 **Status "Readings missing".**
-A source sensor has been `unavailable` for more than 2 minutes. Short dropouts (e.g. an MQTT reconnect) are ignored. After 10 minutes a running PV mode is stopped to be safe.
+A source sensor has been `unavailable` for more than 2 minutes. This includes the EMS-ESP input option: if the connection to EMS-ESP is lost, the integration cannot write the PV bit and therefore does not start. Short dropouts (e.g. an MQTT reconnect) are ignored. After 10 minutes a running PV mode is stopped to be safe.
 
 **Card shows "Custom element doesn't exist".**
 Reload the page once with Ctrl+F5. With dashboards in YAML mode, add the resource `/emsesp_pv_surplus/emsesp-pv-surplus-card.js` (type *module*) yourself.

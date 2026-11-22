@@ -187,7 +187,7 @@ Wenn du die Integration löschst, setzt sie das PV-Bit auf Normalbetrieb zurück
 ## Fehlersuche
 
 - **Karte zeigt „Custom element doesn't exist“:** Seite einmal mit Strg+F5 neu laden. Die Karte ist als Dashboard-Ressource registriert (`/emsesp_pv_surplus/emsesp-pv-surplus-card.js`). Wenn deine Dashboards im YAML-Modus laufen, trage sie selbst als Ressource vom Typ `module` ein.
-- **Status „Messwerte fehlen“:** Eine Quell-Entität ist länger als 2 Minuten `unavailable`. Kürzere Aussetzer werden ignoriert.
+- **Status „Messwerte fehlen“:** Eine Quell-Entität ist länger als 2 Minuten `unavailable`, auch die EMS-ESP Eingangs-Option (Verbindung zu EMS-ESP gestört). Kürzere Aussetzer werden ignoriert.
 - **Fehlerberichte:** bitte den Diagnose-Download anhängen (Integration → ⋮ → Diagnosedaten herunterladen).
 
 ## Haftungsausschluss
@@ -382,7 +382,7 @@ When you delete the integration, it resets the PV bit to normal if it had set it
 ### Troubleshooting
 
 - **Card shows "Custom element doesn't exist":** reload the page once with Ctrl+F5. The card is registered as a dashboard resource (`/emsesp_pv_surplus/emsesp-pv-surplus-card.js`). If your dashboards are in YAML mode, add it yourself as a resource of type `module`.
-- **Status "Readings missing":** one of the source entities is `unavailable` for more than 2 minutes. Shorter dropouts are ignored.
+- **Status "Readings missing":** one of the source entities is `unavailable` for more than 2 minutes, including the EMS-ESP input option (connection to EMS-ESP lost). Shorter dropouts are ignored.
 - **Bug reports:** please attach the diagnostics download (Integration → ⋮ → Download diagnostics).
 
 ### Development

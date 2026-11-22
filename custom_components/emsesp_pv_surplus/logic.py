@@ -122,7 +122,9 @@ SENSOR_STATUS_GRACE = timedelta(minutes=2)
 MAX_RUNTIME_GAP_S = 120.0
 # Price sensors often go unavailable for a moment at the hour/quarter change.
 PRICE_GRACE = timedelta(minutes=15)
-_BITS = re.compile(r"^[01]+$")
+# EMS-ESP input options: one character per flag (0/1), followed by a number for the
+# modulation, e.g. "000000100003" for input 4 (see EMS-ESP boiler.cpp, process_HpInConfig)
+_BITS = re.compile(r"^[0-9]+$")
 
 
 def _fmt_time(value: time) -> str:
@@ -322,6 +324,7 @@ class State:
     deficit_since: datetime | None = None
     soc_low_since: datetime | None = None
     sensor_fail_since: datetime | None = None
+    signal_fail_since: datetime | None = None  # SG-Ready input (EMS-ESP) not readable
     last_eval: datetime | None = None
     last_status: str | None = None
     last_price: float | None = None
@@ -502,7 +505,10 @@ def set_bit(bits: str, index: int, on: bool) -> str:
 
 
 def valid_bits(bits: str | None, index: int) -> bool:
-    return bool(bits) and bool(_BITS.match(bits)) and 0 <= index < len(bits)
+    """Digits only, and the selected position holds a flag (0/1)."""
+    return (
+        bool(bits) and bool(_BITS.match(bits)) and 0 <= index < len(bits) and bits[index] in "01"
+    )
 
 
 def _held(state: State, key: str, value: float | None, now: datetime) -> float | None:
@@ -540,6 +546,13 @@ def evaluate(
         state.sensor_fail_since = None
     elif state.sensor_fail_since is None:
         state.sensor_fail_since = now
+    # The SG-Ready input comes from EMS-ESP, not from the inverter: without a valid value
+    # nothing can be written, so a PV run must not start (and ends after SENSOR_FAIL_DELAY)
+    signal_ok = valid_bits(inp.signal_bits, bit_index)
+    if signal_ok:
+        state.signal_fail_since = None
+    elif state.signal_fail_since is None:
+        state.signal_fail_since = now
 
     release = battery_release(settings, inp.soc, inp.forecast_remaining_kwh)
     missing = battery_missing_kwh(inp.soc, settings.battery_capacity_kwh)
@@ -637,7 +650,7 @@ def evaluate(
         now - state.surplus_since >= timedelta(minutes=settings.on_delay_min)
     )
     checks = {
-        "sensors": sensors_ok,
+        "sensors": sensors_ok and signal_ok,  # grid, battery, SoC and the SG-Ready input
         "sun": inp.sun_up,
         "window": window_ok,
         "battery": inp.soc is not None and inp.soc > settings.soc_stop,
@@ -773,6 +786,8 @@ def evaluate(
             # Running on cheap grid power: battery level, sun and start window do not matter.
             if idle_done:
                 stop(R_IDLE)
+            elif state.signal_fail_since and now - state.signal_fail_since >= SENSOR_FAIL_DELAY:
+                stop(R_SENSOR)
             elif cheap_now or price_hold:
                 pass  # still cheap, or price not known yet: keep running
             elif surplus_now and inp.sun_up and not soc_low:
@@ -791,6 +806,8 @@ def evaluate(
                 stop(R_NIGHT)
             elif state.sensor_fail_since and now - state.sensor_fail_since >= SENSOR_FAIL_DELAY:
                 stop(R_SENSOR)
+            elif state.signal_fail_since and now - state.signal_fail_since >= SENSOR_FAIL_DELAY:
+                stop(R_SENSOR)
             elif idle_done:
                 stop(R_IDLE)
             elif (
@@ -803,7 +820,7 @@ def evaluate(
                 stop(R_PRICE_HIGH)
     elif state.peak_active:
         pass  # heat pump is blocked, no PV mode
-    elif cheap_now and lock_ok:
+    elif cheap_now and lock_ok and signal_ok:
         start(R_CHEAP, count=False, kind=RUN_CHEAP)
     elif all(checks.values()):
         start(R_AUTO, count=True, kind=RUN_PV)
@@ -826,12 +843,19 @@ def evaluate(
             status = ST_DEFICIT
         else:
             status = ST_PV
-    elif not sensors_ok:
+    elif not sensors_ok or not signal_ok:
+        fail_since = min(
+            t
+            for t in (
+                None if sensors_ok else state.sensor_fail_since,
+                None if signal_ok else state.signal_fail_since,
+            )
+            if t is not None
+        )
         if (
             state.last_status is not None
             and state.last_status != ST_SENSOR
-            and state.sensor_fail_since is not None
-            and now - state.sensor_fail_since < SENSOR_STATUS_GRACE
+            and now - fail_since < SENSOR_STATUS_GRACE
         ):
             status = state.last_status
         else:
